@@ -1,0 +1,15 @@
+Package: viewos-kwin-effect
+Version: 0.1.0
+Section: kde
+Priority: optional
+Architecture: amd64
+Maintainer: ViewOS Project <help@jmultimate.com>
+Installed-Size: 256
+Depends: kwin-common (>= 4:6.0), libc6 (>= 2.34), libkf6configcore6 (>= 6.0), libkf6coreaddons6 (>= 6.0), libkf6windowsystem6 (>= 6.0), libqt6core6 (>= 6.5), libqt6gui6 (>= 6.5), libstdc++6 (>= 12)
+Recommends: viewos-face-daemon
+Description: KWin effect for ViewOS face-tracked window tilt
+ This KWin effect receives head pose data from the viewos-face-daemon
+ and applies 3D perspective transforms to windows so they appear to
+ face the user's head position.
+ .
+ Requires a webcam and the viewos-face-daemon service to be running.

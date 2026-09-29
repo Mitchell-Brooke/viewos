@@ -1,0 +1,620 @@
+# Head-Tracked Desktop Linux Distro — Revised Plan
+
+> **Project name: ViewOS** — *pending trademark verification*.
+> This document uses `<DISTRO>` as a placeholder where the name appears in paths.
+> Previously drafted as "MyDistro"; "Perceptix" and "Irix" were both investigated and
+> **rejected** — see §11 for the reasoning. "ViewOS" is the working name; it has not
+> yet been cleared via TESS/EUIPO eSearch (see §11.4).
+
+---
+
+## 0. Executive summary
+
+Build a **publicly released, Debian 13 (Trixie) based, KDE Plasma desktop Linux
+distribution** for amd64, with a signature feature: **head-tracked window
+perspective** — windows rotate in 3D to face the user's head, using a local webcam,
+screen geometry and frustum maths.
+
+Distribution model: Debian's package archive for base packages, plus **one small
+signed APT repository of our own** layered on top for our packages and defaults.
+Fully free infrastructure — **no paid services, no credit card**.
+
+The project targets **desktop hardware first**. Laptop support is explicitly
+deferred (see §3.4 for why this is a deliberate, load-bearing decision).
+
+**Two distinct deliverables with very different risk profiles:**
+
+| Deliverable                | Risk       | Notes                                                       |
+|----------------------------|------------|-------------------------------------------------------------|
+| A working daily-driver ISO | **Medium** | Well-trodden; distros die here on installer + drivers       |
+| The face-tilt feature      | **High**   | Unproven UX; real battery/perf cost; needs its own research |
+
+These are deliberately sequenced so that the *boring* deliverable ships first and
+validates the infrastructure. See §6.
+
+---
+
+## 1. Decision record (all decisions locked)
+
+| Area             | Decision                                      | Notes                                               |
+|------------------|-----------------------------------------------|-----------------------------------------------------|
+| Project name     | **ViewOS** (pending TESS/EUIPO verification)  | See §11; all docs use `<DISTRO>` as placeholder     |
+| Base distro      | **Debian 13 "Trixie"** (currently 13.7)       | First Debian to ship Plasma 6                       |
+| Architecture     | **amd64 only**                                |                                                     |
+| Desktop          | **KDE Plasma 6** (~6.3.x in Trixie)           | Only DE with a supported custom-effect API          |
+| Session          | **X11 default**, Wayland selectable at login  | X11 chosen for NVIDIA maturity, *not* for face-tilt |
+| Boot             | **GRUB2**, isohybrid ISO, UEFI + BIOS         |                                                     |
+| Secure Boot      | **Not supported**                             | See §3.4 — deliberate                               |
+| NVIDIA           | **Proprietary default + nouveau fallback**    | `non-free` + `non-free-firmware` enabled            |
+| Camera           | Webcam; face-tilt **enabled by default**      | See §8.2 — residual risk acknowledged               |
+| Tilt scope       | **Each window individually**                  | With hard exclusions (§5.4)                         |
+| Face detection   | **YuNet** via OpenCV Zoo (**MIT**)            | *Not* MediaPipe — see §5.2                          |
+| Daemon language  | **Rust**                                      |                                                     |
+| KWin integration | **C++ KWin effect** using `WindowPaintData`   | See §5.3                                            |
+| Calibration      | **First-run wizard** + editable config file   |                                                     |
+| Default apps     | **`kde-full`**                                | See §3.3 for what's *missing*                       |
+| Language         | **English (UK) only**                         | i18n-ready, but untranslated                        |
+| Package repo     | Own signed APT repo on **GitHub Pages**       | Layered on `deb.debian.org`                         |
+| ISO hosting      | **Internet Archive**                          | GitHub Releases' 2 GiB limit blocks this            |
+| Builds           | **Local machine**                             |                                                     |
+| Release cadence  | **Monthly ISO + continuous apt updates**      |                                                     |
+| USB persistence  | **None**                                      | Install-to-disk only                                |
+| Installer        | **Calamares** 3.3.14 (in Trixie archive)      |                                                     |
+| Support          | Email + GitHub Issues | `help@jmultimate.com` |
+
+---
+
+## 2. Infrastructure — 100% free, no credit card
+
+This was a hard constraint. It is achievable. Verified patterns:
+
+### 2.1 APT repository → GitHub Pages
+
+An APT repo is just static files. GitHub Pages serves them over HTTPS; `apt` has
+supported `https://` natively since apt 1.5.
+
+- **Limits:** 1 GB repository size, 100 GB bandwidth/month. Ample — our packages
+  are small. **Watch the 1 GB limit** if the bundled face model ever grows.
+- **GPG signing:** generate an offline master key; publish via GitHub Actions
+  secrets. See §7.4.
+- **Battle-tested Actions available:**
+  - `Vr00mm/deb-publish` — tag-triggered publish, concurrency-safe
+  - `frostyard/plow` — version pruning, `testing`/`stable` split
+  - `jrandiny/apt-repo-action` — lower-level, more config
+
+**Decision:** use one of the above rather than hand-rolling `reprepro` in Actions.
+
+### 2.2 ISOs → Internet Archive
+
+GitHub Releases has a **hard 2 GiB per-file limit**, and GitHub LFS does **not**
+lift it. A `kde-full` Plasma ISO will be roughly 4–8 GB, so GitHub Releases is
+simply not an option.
+
+Alternatives considered:
+- Chunked Releases + Cloudflare Worker reassembly (`ading2210/gh-large-releases`) —
+  fragile, users see chunked files. **Rejected.**
+- **Internet Archive** — free, no card, handles multi-GB, **and is semantically the
+  correct home for archival OS images**. Bonus: torrent seeding included. **Chosen.**
+
+### 2.3 Website + docs → GitHub Pages
+
+### 2.4 CI → GitHub Actions (free for public repos)
+
+Note: **ISO builds happen locally**, not in CI, because GitHub's free runner disk
+limit is tight against a live-build's ~25 GB+ working set. CI is used for *package
+builds and repo publishing*, which are small.
+
+---
+
+## 3. Base system
+
+### 3.1 Why Trixie, not Bookworm
+
+- Bookworm reached **EOL in July 2026** and is LTS-only.
+- Trixie is the **first Debian release to ship Plasma 6** (Qt6-based, kernel 6.12 LTS).
+- Debian is the *only* major distribution with a first-party, currently-maintained
+  Plasma 6 package set. KDE Neon is Ubuntu-based; Fedora is RPM; Arch is a
+  different support model entirely. **Debian + Plasma 6 is a genuine gap in the
+  ecosystem** and a defensible reason for this project to exist.
+
+### 3.2 What Debian ships, and what's missing
+
+Solid metapackage chain: `kde-plasma-desktop` → `plasma-desktop`,
+`plasma-workspace`, `kde-baseapps`, `kde-standard`, `kde-full`, plus `sddm`,
+`kwin`, `kwin-x11`, `plasma-nm`, `kwalletmanager`.
+
+**Not shipped in Trixie** (no Qt6/Plasma 6 port):
+`artikulate`, `kamoso`, `kig`, `ktouch`, `rocs`, `umbrello`.
+
+> **Consequence:** we must not advertise "complete KDE". Marketing copy and the
+> website must state these gaps honestly.
+
+`calamares` 3.3.14-1 and `calamares-settings-debian` 13.0.13 are both in the
+Trixie archive — we customise Calamares, we do not use Debian's theme.
+
+### 3.3 Default package set
+
+`kde-full` + Firefox ESR + LibreOffice + terminal. Expect an ISO of ~4–8 GB
+(this is what forced the Internet Archive decision — see §2.2).
+
+### 3.4 Secure Boot: not supported — and why that's OK
+
+Most laptops shipped since ~2018 have Secure Boot on with no user-accessible
+override. **Shipping without Secure Boot support means we do not boot on a
+significant portion of modern laptops.**
+
+**Accepted consequence.** The project positions as **desktop-first**, where
+Secure Boot is rarely enabled. Revisit only if the user base skews heavily toward
+laptops.
+
+If we later add it: **shim + MOK** (free, works, a few days of work).
+Vendor-key enrolment is out of reach — it requires Microsoft programme
+participation.
+
+---
+
+## 4. Project phases
+
+### Phase 0 — Foundations (1–2 weeks)
+
+- [ ] **Resolve the name** (§11). Blocked on a decision.
+- [ ] **Apply for the Linux Foundation "Linux" mark sublicense** (§10). Free,
+      perpetual, *required*, but has lead time — start it early.
+- [ ] Create GitHub organisation; repos for `build`, `packages`, `kwin-effect`,
+      `docs`.
+- [ ] Generate the **offline GPG master signing key** (§7.4).
+- [ ] Stand up the GitHub Pages APT repo skeleton; prove `apt install` works
+      end-to-end with a hello-world package.
+- [ ] Set up Internet Archive item for ISO hosting.
+- [ ] Create `SECURITY.md`, `PRIVACY.md`, `CODE_OF_CONDUCT.md`,
+      `TRADEMARKS.md` **as placeholders** for the co-worker to fill (§12).
+
+### Phase 1 — First bootable ISO (2–4 weeks)
+
+- [ ] `live-build` with `--variant kde`, `--architectures amd64`,
+      `--distribution trixie`, `--binary-images iso-hybrid`, `--bootloaders grub-efi`.
+- [ ] Enable `non-free` + `non-free-firmware`.
+- [ ] Firmware package set: `firmware-linux`, `firmware-realtek`,
+      `firmware-iwlwifi`, `firmware-atheros`, `firmware-amd-graphics`,
+      `firmware-intelwimax`, plus NVIDIA.
+- [ ] Bootloader theme + Plymouth theme.
+- [ ] **No face-tilt yet.** Validate: boots on UEFI + BIOS, Wi-Fi, audio, NVIDIA,
+      nouveau fallback.
+- [ ] Test in **QEMU + OVMF** (UEFI) and real hardware.
+- [ ] **Milestone:** `0.1-dev` — an installable, branded, driver-complete ISO.
+
+### Phase 2 — Daily-driver hardening (3–6 weeks)
+
+- [ ] Calamares configuration: branding, partitioning (auto + manual +
+      "erase disk"), user creation, locale, keyboard, hostname, post-install scripts.
+- [ ] `perceptix-desktop`-style metapackage pulling the whole default set.
+- [ ] NetworkManager, PipeWire/WirePlumber, BlueZ, TLP/powertop defaults.
+- [ ] Default user, `en_GB.UTF-8` locale, UK English.
+- [ ] NVIDIA ↔ nouveau switch path (documented; installer option).
+- [ ] USB installer creation script (Rufus instructions, ISO **and** DD mode).
+- [ ] **Milestone:** `0.1` — first public release. **No face-tilt.**
+
+> This is the milestone where a project lives or dies. Installers and drivers
+> generate the bug reports. Do not defer it to make the feature ship sooner.
+
+### Phase 3 — Face-tilt: prototype (4–6 weeks, local only)
+
+Do all of this **outside** the distro first, on a normal Debian+Plasma machine.
+
+- [ ] Webcam capture via V4L2 → frames.
+- [ ] YuNet detection (MIT, ~1.6 ms/frame at 320×320, 75 856 params).
+- [ ] 5-landmark PnP solve → head position (x, y, z).
+- [ ] Screen physical size + camera offset → frustum parameters.
+- [ ] Frustum maths → desired per-window rotation angles.
+- [ ] **Validate the UX before writing the effect.** If per-window tilt feels bad
+      to you, it will feel bad to everyone. This is the cheap experiment that
+      de-risks the expensive one.
+
+### Phase 4 — Face-tilt: KWin integration (6–10 weeks)
+
+- [ ] Rust daemon: capture → detect → solve → publish pose over a Unix socket.
+- [ ] C++ KWin effect: read pose, apply `WindowPaintData` rotation per window.
+- [ ] **Hard exclusions** (§5.4).
+- [ ] Smoothing, deadzone, max-angle clamp (±8–12°), latency compensation.
+- [ ] System tray indicator + global toggle shortcut.
+- [ ] Graceful degradation: no camera / no face / camera busy.
+- [ ] First-run calibration wizard (screen width in cm, camera offset, neutral pose).
+- [ ] **Measure and publish** the battery/GPU cost (§8.1).
+
+### Phase 5 — Release & hardening (ongoing)
+
+- [ ] Package everything as proper Debian packages; publish to the APT repo.
+- [ ] Monthly ISO rebuild.
+- [ ] Public documentation.
+- [ ] Hardware compatibility matrix, built from real bug reports.
+- [ ] Beta recruitment — the only way to cover hardware we don't own (§8.4).
+
+---
+
+## 5. Face-tilt technical design
+
+### 5.1 Why an *effect*, not a window-management script
+
+The original draft treated X11-vs-Wayland as a blocking architectural risk for this
+feature. **It isn't.**
+
+KWin effects are **compositor-side**. They behave identically on X11 and Wayland.
+The X11/Wayland worry only applies to *window-management scripts* (`xdotool`,
+`wmctrl`), which we are **not** using for this.
+
+So: **X11 is chosen purely for NVIDIA maturity.** The face-tilt feature would work
+identically on Wayland.
+
+### 5.2 Detection: YuNet, not MediaPipe
+
+**Chosen: YuNet** (OpenCV Zoo, model files **MIT**).
+
+- 75 856 parameters, ~1.6 ms/frame at 320×320 on an i7.
+- WIDER FACE AP_hard ≈ 0.75.
+- Outputs a box + **5 landmarks** (eye corners, nose, mouth corners) — sufficient
+  for a PnP head-pose solve, which is all the frustum maths requires.
+- Newer models include a YuNet-backbone **keypoint/pose** variant if more is needed.
+
+**Rejected: MediaPipe**, despite the repo being Apache-2.0:
+- The classic FaceMesh `.tflite` models carry an explicit Apache-2.0 model card.
+- **However**, in mediapipe issue #5242 a Google employee stated: *"Outside of what
+  we published, we cannot comment on any usage restrictions"* — declining to address
+  training-dataset rights.
+- In issue #6306 (Sept 2026) developers asking about newer `.task` bundles were
+  **not given explicit redistribution terms**.
+
+For a **publicly redistributed package**, that ambiguity is a legal-review item.
+
+> **Action item:** verify `libfacedetection`'s own repo licence before vendoring.
+> GitHub shows it as "Other"; the OpenCV Zoo copy is unambiguously MIT. Prefer the
+> OpenCV Zoo distribution, or bundle the model as static C arrays (no runtime model
+> file, no ONNX dependency — ideal Debian packaging).
+
+### 5.3 Compositor integration
+
+Confirmed **supported API**, not a hack:
+
+- `WindowPaintData::setRotationAngle(qreal)`
+- `WindowPaintData::setRotationAxis(Qt::YAxis)`
+- `WindowPaintData::setRotationOrigin(QVector3D)`
+- `WindowPrePaintData::setTransformed()` → sets `PAINT_WINDOW_TRANSFORMED`
+
+The effect implements `prePaintWindow()` / `paintWindow()` and reads pose data from
+the Rust daemon (Unix socket; D-Bus as an alternative).
+
+The KWin effect itself must be **C++/QML** regardless of the daemon's language —
+that's a KWin constraint, not a preference.
+
+### 5.4 Hard exclusions — correctness, not aesthetics
+
+These windows must **never** be tilted:
+
+- **Fullscreen windows** — video playback must not move.
+- **DRM-protected windows** — content must not be distorted.
+- **Dialogs and popups** — transforms make them disorienting.
+- **Maximised windows** — tilting a full-screen-width window fights the desktop metaphor.
+- **The effect's own windows** (wizard, tray UI).
+- **Screensavers / lock screen.**
+
+Additionally: a user-editable blacklist, shipped with a sensible default list and
+growing later.
+
+> **Why this matters technically:** a transformed window is non-rectangular, so
+> **input hit-testing changes**. Getting this wrong means clicks land in the wrong
+> place — the single most user-visible way to break a desktop.
+
+### 5.5 Privacy design
+
+- **Processing is 100% local.** No network code in the daemon, at all. This should
+  be *verifiable by inspection*, and documented as such.
+- **Persistent tray indicator** whenever the camera is live.
+- Config stored locally; nothing leaves the machine.
+- Explicit, prominent privacy documentation (§12).
+
+---
+
+## 6. Sequencing rationale
+
+The original draft ran face-tilt integration (Phase 4) *before* installer polish
+(Phase 5), on a 2–4 month timeline. Two corrections:
+
+1. **"Boring ISO first."** A working, driver-complete, installable ISO ships as
+   `0.1`. Face-tilt lands in `0.2`. Rationale: installers and drivers are where
+   distros actually fail, and they are the boring part — doing them first while
+   energy is high is correct.
+2. **The original 2–4 month estimate was for a hobby project.** For a *public
+   community* release with full-time work, realistic is **months to a working ISO**
+   and **a year+ to something confidently release-quality.** The ongoing costs —
+   a security update pipeline, installer QA, driver support, bug triage — are the
+   real project, and they never end.
+
+---
+
+## 7. Technical notes
+
+### 7.1 Build tooling
+
+- `live-build` + `debootstrap` + `squashfs-tools` + `xorriso` + `grub-efi*`
+- Suggested layout:
+  ```
+  <repo>/
+  ├── config/        # live-build config
+  ├── packages/      # our Debian packages
+  ├── face-tilt/     # Rust daemon + C++ KWin effect
+  ├── hooks/         # chroot / binary hooks
+  ├── repo/          # APT repo layout (published to GitHub Pages)
+  ├── docs/          # website (GitHub Pages)
+  └── iso/           # build output (gitignored)
+  ```
+
+### 7.2 NVIDIA policy
+
+- `non-free` and `non-free-firmware` enabled **by default** in `/etc/apt/sources.list`.
+- `nvidia-driver` (proprietary, 570+) is the default for supported GPUs.
+- **nouveau** as fallback; documented switch procedure.
+- This is the single most common point where derivative distros fail their first
+  users. Test it on real NVIDIA hardware (desktop + laptop) in Phase 2.
+
+### 7.3 Release flow
+
+```
+git tag v0.1
+   ├─> build ISO locally            (1–3 h)
+   ├─> publish ISO to Internet Archive (+ checksums)
+   └─> CI publishes packages to GitHub Pages APT repo (signed)
+```
+
+### 7.4 GPG signing key management
+
+- **Offline master key** (ed25519), passphrase-protected, stored offline.
+- A **signing subkey** used in CI via GitHub Actions secrets.
+- Public key published in the repo and served from the Pages site.
+- **Key rotation policy documented** before 1.0.
+- Loss of the master key means an unrecoverable repository — back it up offline
+  and document the recovery path.
+
+---
+
+## 8. Known risks
+
+### 8.1 Battery / GPU cost — HIGH
+
+Setting `PAINT_WINDOW_WITH_TRANSFORMED_WINDOWS` forces KWin to **repaint the
+entire screen every frame**. At camera framerate, on a laptop, this is the
+largest technical risk in the project.
+
+**Mitigations to explore in Phase 4:**
+- Cap the effect at a lower framerate than the camera (e.g. 15–20 Hz) — tilt is
+  slow; it does not need 30 Hz.
+- Disable automatically on battery / low power profile.
+- Only transform windows that are actually visible on the active output.
+- Measure and **publish** the numbers. Users can make their own trade-off.
+
+### 8.2 Default-ON camera on a public distro — ACKNOWLEDGED RISK
+
+Default-on was chosen deliberately, in preference to a recommendation of
+default-off. It is defensible **only if** the tray indicator, the no-network-code
+guarantee, and the privacy documentation are airtight.
+
+Expect this to be the first thing criticised in reviews and forum discussions.
+Own it proactively in the documentation rather than being caught by it.
+
+### 8.3 Naming — UNRESOLVED
+
+See §11. **Blocks Phase 0.**
+
+### 8.4 Hardware QA ceiling
+
+We can test **two hardware profiles** (one desktop, one laptop). Driver quality
+beyond that depends entirely on community bug reports. Plan beta recruitment from
+early in Phase 2, not at 1.0.
+
+### 8.5 Missing KDE packages
+
+`artikulate, kamoso, kig, ktouch, rocs, umbrello` are unavailable in Trixie.
+Users will notice and will file bugs. Document it up front.
+
+### 8.6 Package-repository trust
+
+Adding a third-party APT repo means our signing key can push arbitrary code as
+root to every user who installed it. This is a serious responsibility:
+- Protect the master key offline (§7.4).
+- Publish a **transparency log** for the repo.
+- Document key rotation and emergency revocation.
+- Keep the number of custom packages **small** — most of the system should come
+  from Debian, whose security team we are not competing with.
+
+---
+
+## 9. Support
+
+- **Email:** `help@jmultimate.com`
+  this appears to be a typo and must be confirmed before publication.*
+- **Ideas:** `ideas@jmultimate.com`
+- **Bugs:** GitHub Issues (alongside email). Users will use GitHub Issues
+  regardless — email alone is unsearchable and unthreaded, and scales badly.
+
+---
+
+## 10. Trademark obligations
+
+### 10.1 The "Linux" mark — REQUIRED ACTION
+
+Per the Linux Foundation's sublicensing programme:
+
+> *"If you plan to market a Linux-based product or service to the public using a
+> trademark that includes the element 'Linux'... you are required to apply for and
+> obtain a sublicense from the Linux Foundation... It doesn't matter if your
+> trademark is unregistered, or if you don't plan to make any money using the
+> mark."*
+
+- **Free**, perpetual, world-wide.
+- **Required** whenever the name contains "Linux" as a brand identifier for
+  software goods — which ours will.
+- **Apply early** — it has lead time. ➜ Phase 0 task.
+- The agreement includes an obligation **not to imply endorsement**.
+
+### 10.2 Debian / KDE / upstream marks
+
+- Redistribute freely under licence.
+- **Do not** use Debian's or KDE's logos or trademarks in a way implying endorsement.
+- Document Debian reuse and attribution in `/usr/share/doc`.
+- *(Full legal review deferred — flagged for the co-worker, §12.)*
+
+---
+
+## 11. Naming — UNRESOLVED, BLOCKS PHASE 0
+
+### 11.1 Rejected names, with reasons
+
+| Name | Why rejected |
+|---|---|
+| **Perceptix** | ≥5 active software businesses: Perceptix AI (perceptix.ai), PERCEPTIX AI LIMITED (UK, Jun 2025), Perceptix Technologies LLC (CA, May 2025), perceptix.co.za, perceptix.ch — plus **Perceptix LLC in an active USPTO proceeding**. Critically, several are **AI/vision companies** — the exact class. |
+| **Irix / IRIX** | **Silicon Graphics trademark**, USPTO #74484101, **Class 9**, covering *"computer software, namely **operating system software**."* Now "Dead" (not renewed), but SGI's chain ran → Rackable → HP, and SGI's IP is held by Graphics Properties Holdings Inc. — a known patent troll. Also one of the most famous OS names in computing history; permanent brand confusion, down to the iconic wordmark. |
+| Sightline | Sightline Systems (commercial monitoring product) |
+| Vantage | Lenovo Vantage |
+| Cadence | Cadence Design Systems (EDA giant) |
+| Sightglass | Existing open-source HTML parser |
+| Vantera | Vantara Inc (SF SaaS), Vantera Coffee |
+| Vertiq | Nokia EU trademark; Vertiq Software LLC |
+| Facetiq | UK company incorporated May 2026 |
+| Glance / Glances | Glance (InMobi, 1000+ staff, preinstalled on Samsung/Motorola); GLANCES (Fanatical Labs) |
+| Levity | LEVITY AI GmbH — registered Class 42, May 2025 |
+| Azimuth | AZIMUTH GRC Inc — registered Class 42 |
+| Azimyth | Elysian Masters LLC — Class 9 + 42, filed Mar 2026 |
+| Tiltix | POSITAL/FRABA inclinometer hardware |
+| Cadensa | Cadensa AI (Oslo); Cadensa Diagnostics |
+| Aspect | **Karat Inc — registered EU trademark for "AI software for facial, gesture and speech recognition and analysis"** |
+| Sightward | Dead mark, company dissolved 2003 |
+| Oblique | Oblique Design LLC; Oblique Inc (IAM vendor) |
+
+### 11.2 The lesson
+
+**The software-naming space, especially around perception/AI/vision, is extremely
+crowded.** Every obvious word is taken — and disproportionately by companies in
+our exact product category.
+
+**Web search cannot clear a trademark.** A reasonable name found by search can
+still collide in a class we did not check.
+
+### 11.3 Chosen working name
+
+**ViewOS** — selected. No existing Linux distribution found by this name. No
+obvious trademark conflicts surfaced in web searches, **but web search cannot
+clear a trademark.**
+
+### 11.4 Verification procedure (required before public announcement)
+
+1. Search **TESS** — `tmsearch.uspto.gov` (free) for "ViewOS" in Classes 9, 42.
+2. Search **EUIPO eSearch** — `euipo.europa.eu/eSearch` (free) for "ViewOS".
+3. Check **distro.watch** and LinuxLinks' active-distro list for collisions.
+4. Check **domain availability** (`viewos.org`, `viewos.com`, `viewos.io`).
+5. If any red flag: pay for a professional clearance search, or pick again.
+6. **Then** apply for the Linux Foundation sublicense (§10.1).
+
+> **Note:** The Linux Foundation sublicense is free, perpetual, world-wide, and
+> **required** whenever the name contains "Linux" as a brand identifier (e.g.
+> "ViewOS Linux"). Apply early — it has lead time.
+
+---
+
+## 12. Governance documents — PLACEHOLDERS
+
+> **Owner: co-worker.** These are scaffolding; replace each block before the
+> first public release.
+
+### `SECURITY.md`
+
+<!-- PLACEHOLDER: to be written -->
+- Reporting channel for vulnerabilities (email, not public issue)
+- Expected response times by severity
+- Supported-versions table (which `<DISTRO>` releases get security fixes)
+- Disclosure policy and credit policy
+- Note: base CVEs are tracked by **Debian**; we track only our packages and
+  configuration defaults. State this explicitly so users know where to look.
+
+### `PRIVACY.md`
+
+<!-- PLACEHOLDER: to be written -->
+**Highest-priority document in this project.** Must cover:
+- What face-tilt does, in plain language
+- **That all processing is local, with no network code** — and how a user can
+  verify it
+- Exactly when the camera is active, and what the indicator looks like
+- What is stored on disk (calibration data only?) and what is not
+- Whether video frames are ever written to disk, and under what conditions
+- Default-on state, and exactly how to turn it off
+- Whether any analytics exist (there should be none — say so unambiguously)
+
+### `CODE_OF_CONDUCT.md`
+
+<!-- PLACEHOLDER: to be written -->
+- Contributor Covenant or equivalent
+- Enforcement contact
+- Scope and reporting process
+
+### `TRADEMARKS.md`
+
+<!-- PLACEHOLDER: to be written -->
+- Our own mark and permitted uses
+- **Acknowledgement of the Linux Foundation sublicense** (§10.1)
+- Statement that **Debian, KDE, Firefox, NVIDIA and others retain their marks**,
+  and that `<DISTRO>` is not endorsed by any of them
+- Debian reuse / attribution statement
+
+### `CONTRIBUTING.md`
+
+<!-- PLACEHOLDER: to be written -->
+- How to build the ISO locally
+- How to build and publish packages
+- How to contribute to the face-tilt components
+- Commit and branch conventions
+
+### `HARDWARE.md`
+
+<!-- PLACEHOLDER: to be written -->
+- Compatibility matrix (populated from real bug reports over time)
+- Known-broken configurations
+- Secure Boot limitation stated plainly (§3.4)
+
+---
+
+## 13. Documentation site structure (outline)
+
+- Getting started / install guide
+- Release notes
+- Face-tilt: what it is, how to calibrate, how to turn it off, privacy
+- Hardware compatibility
+- Building from source
+- Package repository + signing key
+- Governance documents (§12)
+
+---
+
+## 14. Explicitly out of scope for 0.1 / 0.2
+
+- Secure Boot
+- USB persistence
+- Non-amd64 architectures
+- ARM / Raspberry Pi
+- Mobile / touch-first UI
+- Translation (English UK only, though i18n-ready)
+- Enterprise / server tooling
+- Snap/Flatpak/AppImage integration strategy
+- Online account / telemetry anything — **there will be none**
+
+---
+
+## 15. Success criteria
+
+**`0.1` is a success when:**
+- A stranger can download the ISO, write it with Rufus (ISO *or* DD mode), boot it
+  on a UEFI desktop, install it, and get a working desktop with working network,
+  audio, video, and NVIDIA — **without asking us anything**.
+- `apt update && apt upgrade` works against a signed repository.
+- Bug reports arrive that are *specific and reproducible*.
+
+**`0.2` is a success when:**
+- Face-tilt runs at acceptable cost, with no input-latency or click-accuracy bugs.
+- Calibration is genuinely usable by someone who has never seen the wizard.
+- Someone uses it for a full week without turning it off.

@@ -1,0 +1,19 @@
+#!/bin/bash
+# postinst for viewos-kwin-effect
+
+set -e
+
+# Update KWin's effect cache
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+    kbuildsycoca6 --noincremental 2>/dev/null || true
+fi
+
+# Restart KWin if running (user session)
+# This is best done by the user logging out/in, but we can signal
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    # Notify user to restart KWin
+    echo "ViewOS Face Tilt KWin effect installed."
+    echo "Restart KWin (log out/in) or run 'kwin_x11 --replace &' to activate."
+fi
+
+exit 0

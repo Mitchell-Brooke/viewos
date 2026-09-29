@@ -1,0 +1,102 @@
+# ViewOS desktop package list
+# Base metapackages
+kde-full
+kde-plasma-desktop
+kde-standard
+
+# Display manager
+sddm
+
+# Network, audio, bluetooth
+network-manager
+pipewire
+wireplumber
+bluez
+bluez-tools
+pulseaudio-utils
+
+# Power management
+tlp
+tlp-rdw
+powertop
+
+# Firmware (non-free-firmware must be enabled in sources.list)
+firmware-linux
+firmware-linux-nonfree
+firmware-realtek
+firmware-iwlwifi
+firmware-atheros
+firmware-amd-graphics
+firmware-intel-sound
+firmware-sof-signed
+intel-microcode
+amd64-microcode
+
+# NVIDIA - proprietary default, nouveau fallback
+nvidia-driver
+nvidia-driver-libs
+nvidia-kernel-dkms
+nvidia-settings
+nvidia-xconfig
+xserver-xorg-video-nouveau
+
+# Graphics stack
+mesa-vulkan-drivers
+vulkan-tools
+libgl1-mesa-dri
+libglx-mesa0
+
+# Applications
+firefox-esr
+libreoffice
+konsole
+dolphin
+kate
+okular
+gwenview
+spectacle
+ark
+kcalc
+kdeconnect
+vlc
+celluloid
+
+# System utilities
+htop
+btop
+neofetch
+fastfetch
+curl
+wget
+git
+vim
+nano
+sudo
+bash-completion
+command-not-found
+
+# Printing
+cups
+cups-client
+system-config-printer
+
+# Archivers
+p7zip-full
+unrar
+unzip
+zip
+
+# Fonts
+fonts-noto
+fonts-noto-color-emoji
+fonts-dejavu-core
+fonts-liberation2
+fonts-roboto
+
+# Plymouth theme (will be customized later)
+plymouth
+plymouth-themes
+
+# Calamares installer
+calamares
+calamares-settings-debian

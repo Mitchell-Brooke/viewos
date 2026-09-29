@@ -1,0 +1,67 @@
+# ViewOS .gitignore
+
+# Build outputs
+/build/
+/iso/
+/binary.hybrid.iso
+/live-image-*.iso
+/*.iso
+/*.iso.sha256
+
+# live-build
+/config/binary
+/config/bootstrap
+/config/chroot
+/config/common
+/config/source
+/cache/
+
+# Package builds
+/packages/build/
+/packages/viewos-*/usr/
+/packages/viewos-*/DEBIAN/*.deb
+/packages/*.deb
+/packages/*.changes
+/packages/*.dsc
+/packages/*.buildinfo
+
+# Rust
+/face-tilt/daemon/target/
+/face-tilt/daemon/Cargo.lock
+
+# C++ KWin effect
+/face-tilt/kwin-effect/build/
+/face-tilt/kwin-effect/*.so
+
+# APT repo (generated)
+/repo/dists/
+/repo/pool/
+/repo/*.gpg
+/repo/*.asc
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Logs
+*.log
+
+# Secrets (never commit)
+*.key
+*.pem
+*.gpg
+*.asc
+/secrets/
+
+# Local config overrides
+/local.conf
+/local.env

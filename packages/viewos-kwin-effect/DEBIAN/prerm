@@ -1,0 +1,11 @@
+#!/bin/bash
+# prerm for viewos-kwin-effect
+
+set -e
+
+# Disable effect in config before removal
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file kwinrc --group "Effect-ViewOSFaceTilt" --key "Enabled" "false" 2>/dev/null || true
+fi
+
+exit 0

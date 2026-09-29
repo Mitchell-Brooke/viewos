@@ -1,0 +1,24 @@
+{
+    "KPlugin": {
+        "Name": "ViewOS Face Tilt",
+        "Description": "Tilts windows toward your face using webcam head tracking",
+        "Authors": [
+            {
+                "Name": "ViewOS Project",
+                "Email": "help@jmultimate.com"
+            }
+        ],
+        "License": "GPL-3.0-or-later",
+        "Website": "https://viewos.org",
+        "Version": "0.1.0",
+        "Category": "Appearance",
+        "EnabledByDefault": false,
+        "Dependencies": [],
+        "Keywords": ["face", "tracking", "tilt", "perspective", "head", "webcam"]
+    },
+    "X-KWin-Effect": {
+        "SupportedPlatforms": ["X11", "Wayland"],
+        "Configurable": true,
+        "RequiresCompositing": true
+    }
+}

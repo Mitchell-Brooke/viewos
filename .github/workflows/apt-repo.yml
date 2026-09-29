@@ -1,0 +1,101 @@
+name: Publish ViewOS APT Repository
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-packages:
+    name: Build Debian packages
+    runs-on: ubuntu-latest
+    outputs:
+      package-changes: ${{ steps.changes.outputs.changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build packages
+        id: build
+        run: |
+          # This is a placeholder - replace with actual package builds
+          echo "packages=viewos-desktop_1.0_amd64.deb" >> $GITHUB_OUTPUT
+          echo "changes=viewos-desktop_1.0_amd64.changes" >> $GITHUB_OUTPUT
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-packages
+          path: |
+            *.deb
+            *.changes
+            *.dsc
+            *.buildinfo
+
+  publish-repo:
+    name: Publish to GitHub Pages APT repo
+    needs: build-packages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout pages repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: gh-pages
+          path: pages
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-packages
+          path: packages
+
+      - name: Import GPG key
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Setup reprepro
+        run: |
+          sudo apt-get update && sudo apt-get install -y reprepro dpkg-dev curl jq
+
+      - name: Add packages to repository
+        run: |
+          cd pages
+          mkdir -p conf
+          cp ${{ github.workspace }}/repo/conf/distributions conf/
+          
+          # Add each package
+          for pkg in ../packages/*.deb; do
+            if [ -f "$pkg" ]; then
+              reprepro -Vb . includedeb trixie "$pkg"
+            fi
+          done
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pages
+          force_orphan: true

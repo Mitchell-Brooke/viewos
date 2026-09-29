@@ -1,0 +1,81 @@
+#!/bin/bash
+# ViewOS live-build auto/config
+# This file is sourced by lb config
+
+# Architecture
+LB_ARCHITECTURES="amd64"
+
+# Distribution
+LB_DISTRIBUTION="trixie"
+
+# Debian installer
+LB_DEBIAN_INSTALLER="live"
+
+# Binary images
+LB_BINARY_IMAGES="iso-hybrid"
+
+# Bootloader
+LB_BOOTLOADERS="grub-efi"
+
+# Boot parameters
+LB_BOOTAPPEND_LIVE="boot=live components quiet splash username=user hostname=viewos"
+LB_BOOTAPPEND_INSTALL="quiet splash"
+
+# ISO metadata
+LB_ISO_APPLICATION="ViewOS"
+LB_ISO_PUBLISHER="ViewOS Project <help@jmultimate.com>"
+LB_ISO_VOLUME="ViewOS $(date +%Y%m%d)"
+
+# Linux flavour
+LB_LINUX_FLAVOURS="amd64"
+LB_LINUX_PACKAGES="linux-image linux-headers"
+
+# APT settings
+LB_APT="apt"
+LB_APT_RECOMMENDS="true"
+LB_APT_SECURE="true"
+LB_APT_SOURCE_ARCHIVES="false"
+
+# Archive areas
+LB_ARCHIVE_AREAS="main contrib non-free non-free-firmware"
+LB_PARENT_ARCHIVE_AREAS="main contrib non-free non-free-firmware"
+
+# Cache
+LB_CACHE="true"
+LB_CACHE_INDICES="true"
+LB_CACHE_PACKAGES="true"
+
+# Filesystem
+LB_CHROOT_FILESYSTEM="squashfs"
+LB_COMPRESSION="gzip"
+
+# Debootstrap
+LB_DEBOOTSTRAP_OPTIONS="--variant=minbase"
+
+# Firmware
+LB_FIRMWARE_BINARY="true"
+LB_FIRMWARE_CHROOT="true"
+
+# GRUB splash
+LB_GRUB_SPLASH="/usr/share/images/desktop-base/grub-splash.png"
+
+# Keyring
+LB_KEYRING_PACKAGES="debian-archive-keyring"
+
+# Memtest
+LB_MEMTEST="none"
+
+# Mode
+LB_MODE="debian"
+
+# Security
+LB_SECURITY="true"
+
+# System
+LB_SYSTEM="normal"
+
+# Updates
+LB_UPDATES="true"
+
+# Verbose
+LB_VERBOSE="true"

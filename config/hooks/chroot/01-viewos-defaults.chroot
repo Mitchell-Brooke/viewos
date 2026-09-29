@@ -1,0 +1,106 @@
+#!/bin/bash
+# chroot hook: ViewOS defaults and branding
+# Runs inside the chroot during build
+
+set -e
+
+# Set default locale
+echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen
+update-locale LANG=en_GB.UTF-8
+
+# Set timezone (can be overridden at boot)
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+# Configure apt to not install recommends by default for cleaner installs
+# (but we enable it in live-build for the ISO)
+cat > /etc/apt/apt.conf.d/99viewos << 'EOF'
+APT::Install-Recommends "true";
+APT::Install-Suggests "false";
+EOF
+
+# Set default browser
+update-alternatives --set x-www-browser /usr/bin/firefox-esr 2>/dev/null || true
+
+# Disable sudo password for live user (live-build handles this)
+# but ensure the group exists
+getent group sudo >/dev/null || groupadd sudo
+
+# Set GRUB timeout
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=5/' /etc/default/grub 2>/dev/null || true
+
+# Configure SDDM for auto-login of live user (handled by live-build)
+# but set our theme
+mkdir -p /etc/sddm.conf.d
+cat > /etc/sddm.conf.d/viewos.conf << 'EOF'
+[Autologin]
+User=user
+Session=plasma.desktop
+
+[Theme]
+Current=viewos
+EOF
+
+# Set Plasma as default session
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/plasma.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Exec=/usr/bin/startplasma-x11
+TryExec=/usr/bin/startplasma-x11
+Name=Plasma (X11)
+Comment=Plasma by KDE
+DesktopNames=KDE
+EOF
+
+# Configure KWin for X11 (our default)
+mkdir -p /etc/xdg
+cat > /etc/xdg/kwinrc << 'EOF'
+[Compositing]
+AnimationSpeed=3
+Backend=OpenGL
+Enabled=true
+OpenGLIsUnsafe=false
+WindowsBlockCompositing=true
+
+[Effect-ViewOSFaceTilt]
+Enabled=false
+
+[Plugins]
+viewosfacetiltEnabled=false
+EOF
+
+# Set default wallpaper (placeholder - will be replaced with actual branding)
+mkdir -p /usr/share/wallpapers/viewos/contents/images
+# A simple solid color placeholder - replace with actual image
+convert -size 1920x1080 xc:'#1e1e2e' /usr/share/wallpapers/viewos/contents/images/1920x1080.png 2>/dev/null || \
+    echo "Install imagemagick for wallpaper generation"
+
+cat > /usr/share/wallpapers/viewos/metadata.desktop << 'EOF'
+[Desktop Entry]
+Name=ViewOS
+Name[en_GB]=ViewOS
+Type=Wallpaper
+X-KDE-PluginInfo-Name=viewos
+X-KDE-PluginInfo-License=GPL
+EOF
+
+# Set default wallpaper for Plasma
+mkdir -p /usr/share/plasma/layout-templates/org.kde.plasma.desktop/defaultPanelContents/contents
+cat > /usr/share/plasma/layout-templates/org.kde.plasma.desktop/defaultPanelContents/metadata.desktop << 'EOF'
+[Desktop Entry]
+Type=Service
+Name=Default Panel
+Icon=panel
+X-Plasma-Shell=org.kde.plasma.desktop
+X-Plasma-ContainmentCategories=Panel
+X-KDE-PluginInfo-Author=ViewOS Project
+X-KDE-PluginInfo-Email=help@jmultimate.com
+X-KDE-PluginInfo-Name=org.kde.plasma.defaultPanel
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-Website=https://viewos.org
+X-KDE-PluginInfo-License=GPL
+X-KDE-PluginInfo-EnabledByDefault=true
+EOF
+
+echo "ViewOS chroot hook completed"

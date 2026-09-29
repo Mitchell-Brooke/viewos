@@ -1,0 +1,12 @@
+#!/bin/bash
+# prerm for viewos-face-daemon
+
+set -e
+
+# Stop and disable service
+systemctl --user stop viewos-face-daemon.service 2>/dev/null || true
+systemctl --user disable viewos-face-daemon.service 2>/dev/null || true
+systemctl stop viewos-face-daemon.service 2>/dev/null || true
+systemctl disable viewos-face-daemon.service 2>/dev/null || true
+
+exit 0

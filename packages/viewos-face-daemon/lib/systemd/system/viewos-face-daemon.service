@@ -1,0 +1,38 @@
+[Unit]
+Description=ViewOS Face Tracking Daemon
+Documentation=https://viewos.org/docs/face-tilt
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/viewos-face-daemon --config /etc/viewos/face-daemon.toml
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
+# Allow camera access
+SupplementaryGroups=video
+CapabilityBoundingSet=CAP_VIDEO_CAPTURE
+
+# Resource limits
+LimitNOFILE=1024
+LimitNPROC=512
+
+[Install]
+WantedBy=graphical-session.target

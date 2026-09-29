@@ -1,0 +1,9 @@
+Origin: ViewOS
+Label: ViewOS
+Suite: stable
+Codename: trixie
+Components: main
+Architectures: amd64 source
+Description: ViewOS packages for Debian Trixie
+SignWith: default
+SignKey: 0xYOURKEYID
