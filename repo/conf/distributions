@@ -6,4 +6,4 @@ Components: main
 Architectures: amd64 source
 Description: ViewOS packages for Debian Trixie
 SignWith: default
-SignKey: 0xYOURKEYID
+SignKey: 0xC9B1369BDEA8D9A1
