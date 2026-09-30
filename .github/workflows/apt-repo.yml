@@ -155,7 +155,7 @@ jobs:
             cargo \
             libopencv-dev \
             fakeroot \
-            llvm-dev
+            llvm-17
           rm -rf /var/lib/apt/lists/*
 
       - name: Report the toolchain versions
@@ -165,8 +165,13 @@ jobs:
           rustc --version
           cargo --version
           pkg-config --modversion opencv4
+          llvm-config-17 --version
 
       - name: Build and package
+        env:
+          # clang-sys (transitive dep of bindgen) needs llvm-config. Trixie's
+          # llvm-17 package installs it as llvm-config-17.
+          LLVM_CONFIG_PATH: /usr/bin/llvm-config-17
         run: packages/build-face-daemon.sh
 
       - name: Run the unit tests

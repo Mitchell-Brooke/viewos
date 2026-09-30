@@ -14,6 +14,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # The effect is a loadable module, not something to be linked into anything.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# libepoxy does not ship a CMake config file, but KWinConfig.cmake calls
+# find_dependency(epoxy). Provide a minimal FindEpoxy.cmake that uses
+# pkg-config so that find_dependency succeeds.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(EPOXY REQUIRED epoxy)
+
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
 # ECM 6.x places the KDE helper modules under kde-modules/, and they
