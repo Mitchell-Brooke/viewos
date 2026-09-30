@@ -28,7 +28,6 @@
 class ViewOSFaceTiltEffect : public KWin::Effect
 {
     Q_OBJECT
-    K_PLUGIN_CLASS_WITH_JSON(ViewOSFaceTiltEffect, "metadata.json")
 
 public:
     ViewOSFaceTiltEffect();
