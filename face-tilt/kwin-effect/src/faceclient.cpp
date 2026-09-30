@@ -30,8 +30,6 @@ FaceClient::FaceClient(QObject *parent)
     , m_socket(new QLocalSocket(this))
     , m_socketPath(QDir::temp().filePath(QStringLiteral("viewos-face-tilt.sock")))
 {
-    m_socket->setSocketOption(QLocalSocket::LowDelayOption, 1);
-
     connect(m_socket, &QLocalSocket::readyRead, this, &FaceClient::onReadyRead);
     connect(m_socket, &QLocalSocket::connected, this, &FaceClient::onConnected);
     connect(m_socket, &QLocalSocket::disconnected, this, &FaceClient::onDisconnected);

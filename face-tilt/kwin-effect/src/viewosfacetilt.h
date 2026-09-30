@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <kwin/effect.h>
-#include <kwin/effectwindow.h>
-#include <kwin/effecthandler.h>
+#include <effect/effect.h>
+#include <effect/effectwindow.h>
+#include <effect/effecthandler.h>
 
 #include "faceclient.h"
 
