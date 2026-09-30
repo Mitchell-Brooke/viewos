@@ -59,7 +59,6 @@ find_package(KWin 6.0 REQUIRED)
 # ${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins, which is the directory
 # EffectsHandler scans via KPluginMetaData::findPlugins().
 kcoreaddons_add_plugin(viewosfacetilt
-    METADATA_JSON metadata.json
     SOURCES
         src/viewosfacetilt.cpp
         src/viewosfacetilt.h
