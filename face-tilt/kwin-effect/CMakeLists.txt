@@ -29,8 +29,9 @@ if(NOT TARGET epoxy::epoxy)
     )
 endif()
 
-# Mark as found so find_dependency(epoxy) in KWinConfig.cmake is satisfied
-set(epoxy_FOUND TRUE)
+# Mark as found so find_dependency(epoxy) in KWinConfig.cmake is satisfied.
+# find_package checks for EPOXY_FOUND (uppercase package name + _FOUND).
+set(EPOXY_FOUND TRUE)
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
