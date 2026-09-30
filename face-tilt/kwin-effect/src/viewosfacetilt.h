@@ -128,6 +128,6 @@ private:
     bool m_needsAnotherFrame = false;
 };
 
-K_PLUGIN_CLASS_WITH_JSON(KWin::ViewOSFaceTiltEffect, "metadata.json")
-
 } // namespace KWin
+
+K_PLUGIN_CLASS_WITH_JSON(KWin::ViewOSFaceTiltEffect, "metadata.json")
