@@ -50,6 +50,8 @@ endif()
 
 # Pulls in Qt6, KF6 and defines the imported target KWin::kwin.
 # It also pulls in KF6CoreAddons, which provides kcoreaddons_add_plugin().
+# KWinTargets.cmake requires Qt6::Widgets in its INTERFACE_LINK_LIBRARIES.
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Widgets)
 find_package(KWin 6.0 REQUIRED)
 
 # Builds a MODULE library, sets LIBRARY_OUTPUT_DIRECTORY so the plugin can be
