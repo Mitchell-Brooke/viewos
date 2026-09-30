@@ -15,9 +15,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # libepoxy does not ship a CMake config file or Find module, but KWinConfig.cmake
-# calls find_dependency(epoxy). Provide our own FindEpoxy.cmake in a local
-# cmake/ directory and add it to CMAKE_MODULE_PATH so find_package(epoxy) finds it.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# calls find_dependency(epoxy) which requires one. Hardcode the target for
+# Debian Trixie (libepoxy-dev 1.5.10-2) so find_dependency is satisfied.
+# On Trixie, libepoxy-dev installs:
+#   /usr/include/epoxy/epoxy.h
+#   /usr/lib/x86_64-linux-gnu/libepoxy.so
+#   /usr/lib/x86_64-linux-gnu/pkgconfig/epoxy.pc
+if(NOT TARGET epoxy::epoxy)
+    add_library(epoxy::epoxy INTERFACE IMPORTED)
+    set_target_properties(epoxy::epoxy PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "/usr/include"
+        INTERFACE_LINK_LIBRARIES "epoxy"
+    )
+endif()
+
+# Mark as found so find_dependency(epoxy) in KWinConfig.cmake is satisfied
+set(epoxy_FOUND TRUE)
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
