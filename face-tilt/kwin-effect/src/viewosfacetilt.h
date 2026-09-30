@@ -124,5 +124,3 @@ private:
      */
     bool m_needsAnotherFrame = false;
 };
-
-K_PLUGIN_CLASS_WITH_JSON(ViewOSFaceTiltEffect, "metadata.json")
