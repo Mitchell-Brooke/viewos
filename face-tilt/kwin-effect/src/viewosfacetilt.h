@@ -129,5 +129,3 @@ private:
 };
 
 } // namespace KWin
-
-K_PLUGIN_CLASS_WITH_JSON(KWin::ViewOSFaceTiltEffect, "metadata.json")

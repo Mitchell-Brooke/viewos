@@ -224,8 +224,44 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
 
 } // namespace KWin
 
-K_PLUGIN_FACTORY_WITH_JSON(ViewOSFaceTiltEffectFactory,
-                          "metadata.json",
-                          registerPlugin<KWin::ViewOSFaceTiltEffect>())
+// Manual plugin factory to avoid K_PLUGIN_FACTORY_WITH_JSON compile-time checks.
+// Uses the public registerPlugin(CreateInstanceWithMetaDataFunction) overload
+// which takes a factory function and embeds metadata via resource file.
+class ViewOSFaceTiltEffectFactory : public KPluginFactory
+{
+    Q_OBJECT
+public:
+    ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
+        : KPluginFactory(parent, args)
+    {
+        // Register using the public function-pointer overload that takes a factory function.
+        // The lambda signature must match CreateInstanceWithMetaDataFunction exactly:
+        // QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&)
+        registerPlugin(
+            &KWin::ViewOSFaceTiltEffect::staticMetaObject,
+            [](QWidget *widget, QObject *parent,
+               const KPluginMetaData &data, const QList<QVariant> &args) -> QObject * {
+                Q_UNUSED(widget);
+                Q_UNUSED(data);
+                Q_UNUSED(args);
+                return new KWin::ViewOSFaceTiltEffect(parent);
+            });
+    }
+
+    QJsonObject metaData() const override
+    {
+        QFile file(QStringLiteral(":/metadata.json"));
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        const QByteArray data = file.readAll();
+        QJsonParseError error;
+        const QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            return {};
+        }
+        return doc.object();
+    }
+};
 
 #include "viewosfacetilt.moc"
