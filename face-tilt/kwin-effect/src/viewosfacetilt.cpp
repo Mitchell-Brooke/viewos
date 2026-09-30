@@ -26,8 +26,8 @@ Q_LOGGING_CATEGORY(VIEWOS_FACE_TILT, "kwin.viewosfacetilt", QtWarningMsg)
 namespace KWin
 {
 
-ViewOSFaceTiltEffect::ViewOSFaceTiltEffect()
-    : Effect()
+ViewOSFaceTiltEffect::ViewOSFaceTiltEffect(QObject *parent)
+    : Effect(parent)
     , m_client(new ViewOS::FaceClient(this))
 {
     connect(m_client, &ViewOS::FaceClient::poseReceived,
@@ -224,18 +224,27 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
 
 } // namespace KWin
 
+// Static factory function for the plugin.
+// Must match CreateInstanceWithMetaDataFunction exactly:
+// QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&)
+static QObject* createViewOSFaceTiltEffect(QWidget *widget, QObject *parent,
+                                           const KPluginMetaData &data, const QList<QVariant> &args)
+{
+    Q_UNUSED(widget);
+    Q_UNUSED(data);
+    Q_UNUSED(args);
+    return new KWin::ViewOSFaceTiltEffect(parent);
+}
+
 // Manual plugin factory to avoid K_PLUGIN_FACTORY_WITH_JSON compile-time checks.
-// Uses the public registerPlugin(CreateInstanceWithMetaDataFunction) overload
-// which takes a factory function and embeds metadata via resource file.
+// Uses the public registerPlugin(CreateInstanceWithMetaDataFunction) overload.
 class ViewOSFaceTiltEffectFactory : public KPluginFactory
 {
     Q_OBJECT
 public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
-        : KPluginFactory(parent, args)
+        : KPluginFactory()
     {
-        // Register using the public function-pointer overload.
-        // Use a static function to avoid template deduction issues with lambdas.
         registerPlugin(createViewOSFaceTiltEffect);
     }
 
@@ -254,17 +263,5 @@ public:
         return doc.object();
     }
 };
-
-// Static factory function for the plugin.
-// Must match CreateInstanceWithMetaDataFunction exactly:
-// QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&)
-static QObject* createViewOSFaceTiltEffect(QWidget *widget, QObject *parent,
-                                           const KPluginMetaData &data, const QList<QVariant> &args)
-{
-    Q_UNUSED(widget);
-    Q_UNUSED(data);
-    Q_UNUSED(args);
-    return new KWin::ViewOSFaceTiltEffect(parent);
-}
 
 #include "viewosfacetilt.moc"

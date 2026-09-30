@@ -33,7 +33,7 @@ class ViewOSFaceTiltEffect : public Effect
     Q_OBJECT
 
 public:
-    ViewOSFaceTiltEffect();
+    ViewOSFaceTiltEffect(QObject *parent = nullptr);
     ~ViewOSFaceTiltEffect() override;
 
     void reconfigure(Effect::ReconfigureFlags flags) override;
