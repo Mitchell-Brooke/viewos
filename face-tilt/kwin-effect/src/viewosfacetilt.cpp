@@ -245,7 +245,9 @@ public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
         : KPluginFactory()
     {
-        registerPlugin(createViewOSFaceTiltEffect);
+        // Register using the public template overload with explicit template argument.
+        // This avoids the template deduction failure with function pointers.
+        registerPlugin<KWin::ViewOSFaceTiltEffect>(createViewOSFaceTiltEffect);
     }
 
     QJsonObject metaData() const override
