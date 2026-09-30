@@ -12,7 +12,9 @@
 #include <KSharedConfig>
 
 #include <QDir>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QMatrix4x4>
 #include <QQuaternion>
 #include <QStandardPaths>
@@ -346,7 +348,7 @@ public:
 
     QJsonObject metaData() const override
     {
-        QFile file(":/metadata.json");
+        QFile file(QStringLiteral(":/metadata.json"));
         if (!file.open(QIODevice::ReadOnly)) {
             return {};
         }
