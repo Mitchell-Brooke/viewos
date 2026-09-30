@@ -216,7 +216,7 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
 
     *axis = QVector3D(-dy, -dx, 0.0f);
     float len = std::sqrt(dx * dx + dy * dy);
-    *angle = std::min(len * 180.0f / M_PI, m_maxAngleDeg);
+    *angle = std::min(len * 180.0f / M_PI, float(m_maxAngleDeg));
 
     if (m_invertYaw) axis->setX(-axis->x());
     if (m_invertPitch) axis->setY(-axis->y());
@@ -250,6 +250,6 @@ public:
         registerPlugin<KWin::ViewOSFaceTiltEffect>(createViewOSFaceTiltEffect);
     }
 
-    QJsonObject };
+    };
 
 #include "viewosfacetilt.moc"
