@@ -18,9 +18,14 @@ find_package(ECM 6.10 REQUIRED NO_MODULE)
 
 # ECM 6.x places the KDE helper modules under kde-modules/, and they
 # are NOT added to CMAKE_MODULE_PATH by ECMConfig.cmake. Include them
-# explicitly from ECM_MODULE_DIR, which ECMConfig.cmake does set.
-# Guard against ECM < 5.82 where the layout was different.
-if(EXISTS "${ECM_MODULE_DIR}/kde-modules/KDEInstallDirs.cmake")
+# explicitly from ECM_KDE_MODULE_DIR, which ECMConfig.cmake sets to
+# <prefix>/share/ECM/kde-modules/. Guard against ECM < 5.82 where the
+# layout was different and the modules were in ECM_MODULE_DIR directly.
+if(EXISTS "${ECM_KDE_MODULE_DIR}/KDEInstallDirs.cmake")
+    include("${ECM_KDE_MODULE_DIR}/KDEInstallDirs.cmake")
+    include("${ECM_KDE_MODULE_DIR}/KDECMakeSettings.cmake")
+    include("${ECM_KDE_MODULE_DIR}/KDECompilerSettings.cmake" NO_POLICY_SCOPE)
+elseif(EXISTS "${ECM_MODULE_DIR}/kde-modules/KDEInstallDirs.cmake")
     include("${ECM_MODULE_DIR}/kde-modules/KDEInstallDirs.cmake")
     include("${ECM_MODULE_DIR}/kde-modules/KDECMakeSettings.cmake")
     include("${ECM_MODULE_DIR}/kde-modules/KDECompilerSettings.cmake" NO_POLICY_SCOPE)
