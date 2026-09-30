@@ -234,16 +234,9 @@ public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
         : KPluginFactory(parent, args)
     {
-        // Register using the public function-pointer overload that takes a factory function.
-        // Explicitly cast to the function pointer type to avoid template deduction issues.
-        using CreateFunc = QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&);
-        registerPlugin(
-            static_cast<CreateFunc>([](QWidget *widget, QObject *parent,
-                                       const KPluginMetaData &data, const QList<QVariant> &args) -> QObject * {
-                Q_UNUSED(widget);
-                Q_UNUSED(data);
-                return new KWin::ViewOSFaceTiltEffect(parent);
-            }));
+        // Register using the public function-pointer overload.
+        // Use a static function to avoid template deduction issues with lambdas.
+        registerPlugin(createViewOSFaceTiltEffect);
     }
 
     QJsonObject metaData() const override
@@ -261,5 +254,17 @@ public:
         return doc.object();
     }
 };
+
+// Static factory function for the plugin.
+// Must match CreateInstanceWithMetaDataFunction exactly:
+// QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&)
+static QObject* createViewOSFaceTiltEffect(QWidget *widget, QObject *parent,
+                                           const KPluginMetaData &data, const QList<QVariant> &args)
+{
+    Q_UNUSED(widget);
+    Q_UNUSED(data);
+    Q_UNUSED(args);
+    return new KWin::ViewOSFaceTiltEffect(parent);
+}
 
 #include "viewosfacetilt.moc"
