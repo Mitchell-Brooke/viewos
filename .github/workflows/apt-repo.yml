@@ -157,6 +157,8 @@ jobs:
             fakeroot \
             llvm-17 \
             libclang-17-dev
+          # Set OpenCV cmake config path for the opencv crate's build.rs
+          echo "OpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4" >> $GITHUB_ENV
           rm -rf /var/lib/apt/lists/*
 
       - name: Report the toolchain versions
