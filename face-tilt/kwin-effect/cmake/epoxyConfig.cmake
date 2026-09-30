@@ -6,15 +6,18 @@
 # libepoxy doesn't provide a CMake config file. This file is placed at a known
 # location and epoxy_DIR is set to point to it, so that find_dependency(epoxy)
 # in KWinConfig.cmake succeeds.
+#
+# KWinTargets.cmake expects a target named `epoxy::epoxy` (lowercase), not
+# `Epoxy::Epoxy`.
 
 # Use pkg-config to get the actual flags
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PC_EPOXY REQUIRED epoxy)
 
-# Create an imported target
-if(NOT TARGET Epoxy::Epoxy)
-    add_library(Epoxy::Epoxy INTERFACE IMPORTED)
-    set_target_properties(Epoxy::Epoxy PROPERTIES
+# Create the imported target that KWin expects
+if(NOT TARGET epoxy::epoxy)
+    add_library(epoxy::epoxy INTERFACE IMPORTED)
+    set_target_properties(epoxy::epoxy PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${PC_EPOXY_INCLUDE_DIRS}"
         INTERFACE_LINK_LIBRARIES "${PC_EPOXY_LIBRARIES}"
         INTERFACE_COMPILE_OPTIONS "${PC_EPOXY_CFLAGS_OTHER}"
