@@ -218,8 +218,8 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
     float len = std::sqrt(dx * dx + dy * dy);
     *angle = std::min(len * 180.0f / M_PI, m_maxAngleDeg);
 
-    if (m_invertYaw) axis.setX(-axis.x());
-    if (m_invertPitch) axis.setY(-axis.y());
+    if (m_invertYaw) axis->setX(-axis->x());
+    if (m_invertPitch) axis->setY(-axis->y());
 }
 
 } // namespace KWin
@@ -250,20 +250,6 @@ public:
         registerPlugin<KWin::ViewOSFaceTiltEffect>(createViewOSFaceTiltEffect);
     }
 
-    QJsonObject metaData() const override
-    {
-        QFile file(QStringLiteral(":/metadata.json"));
-        if (!file.open(QIODevice::ReadOnly)) {
-            return {};
-        }
-        const QByteArray data = file.readAll();
-        QJsonParseError error;
-        const QJsonDocument doc = QJsonDocument::fromJson(data, &error);
-        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-            return {};
-        }
-        return doc.object();
-    }
-};
+    QJsonObject };
 
 #include "viewosfacetilt.moc"
