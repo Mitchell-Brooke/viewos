@@ -15,6 +15,9 @@
 
 #include <QSet>
 
+namespace KWin
+{
+
 /**
  * Per-window head-facing rotation.
  *
@@ -25,7 +28,7 @@
  * Windows that would be wrong or unsafe to rotate are excluded; see
  * isEligible() for the list and the reasoning.
  */
-class ViewOSFaceTiltEffect : public KWin::Effect
+class ViewOSFaceTiltEffect : public Effect
 {
     Q_OBJECT
 
@@ -33,18 +36,18 @@ public:
     ViewOSFaceTiltEffect();
     ~ViewOSFaceTiltEffect() override;
 
-    void reconfigure(KWin::Effect::ReconfigureFlags flags) override;
+    void reconfigure(Effect::ReconfigureFlags flags) override;
     bool isActive() const override;
 
-    void prePaintScreen(KWin::ScreenPrePaintData &data, std::chrono::milliseconds presentTime) override;
-    void paintScreen(const KWin::RenderTarget &renderTarget, const KWin::RenderViewport &viewport, int mask,
-                     const QRegion &region, KWin::Output *screen) override;
+    void prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime) override;
+    void paintScreen(const RenderTarget &renderTarget, const RenderViewport &viewport, int mask,
+                     const QRegion &region, Output *screen) override;
     void postPaintScreen() override;
 
-    void prePaintWindow(KWin::EffectWindow *w, KWin::WindowPrePaintData &data,
+    void prePaintWindow(EffectWindow *w, WindowPrePaintData &data,
                         std::chrono::milliseconds presentTime) override;
-    void paintWindow(const KWin::RenderTarget &renderTarget, const KWin::RenderViewport &viewport, KWin::EffectWindow *w,
-                     int mask, QRegion region, KWin::WindowPaintData &data) override;
+    void paintWindow(const RenderTarget &renderTarget, const RenderViewport &viewport, EffectWindow *w,
+                     int mask, QRegion region, WindowPaintData &data) override;
 
     /**
      * Whether this window should be rotated.
@@ -66,7 +69,7 @@ public:
      *  - anything hidden, minimised, or not on the current desktop, which
      *    should not be painted transformed at all.
      */
-    bool isEligible(KWin::EffectWindow *w) const;
+    bool isEligible(EffectWindow *w) const;
 
 private:
     void loadConfig();
@@ -124,3 +127,7 @@ private:
      */
     bool m_needsAnotherFrame = false;
 };
+
+K_PLUGIN_CLASS_WITH_JSON(ViewOSFaceTiltEffect, "metadata.json")
+
+} // namespace KWin

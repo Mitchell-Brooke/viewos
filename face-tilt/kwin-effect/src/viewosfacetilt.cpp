@@ -5,7 +5,7 @@
 
 #include "viewosfacetilt.h"
 
-#include <core/output.h>
+#include <effect/core/output.h>
 
 #include <KConfigGroup>
 #include <KPluginFactory>
@@ -23,8 +23,11 @@
 
 Q_LOGGING_CATEGORY(VIEWOS_FACE_TILT, "kwin.viewosfacetilt", QtWarningMsg)
 
+namespace KWin
+{
+
 ViewOSFaceTiltEffect::ViewOSFaceTiltEffect()
-    : KWin::Effect()
+    : Effect()
     , m_client(new ViewOS::FaceClient(this))
 {
     connect(m_client, &ViewOS::FaceClient::poseReceived,
@@ -35,9 +38,9 @@ ViewOSFaceTiltEffect::ViewOSFaceTiltEffect()
 
 ViewOSFaceTiltEffect::~ViewOSFaceTiltEffect() = default;
 
-void ViewOSFaceTiltEffect::reconfigure(KWin::Effect::ReconfigureFlags flags)
+void ViewOSFaceTiltEffect::reconfigure(Effect::ReconfigureFlags flags)
 {
-    KWin::Effect::reconfigure(flags);
+    Effect::reconfigure(flags);
     loadConfig();
     if (m_enabled) {
         m_client->setSocketPath(QDir::temp().filePath("viewos-face-tilt.sock"));
@@ -53,48 +56,48 @@ bool ViewOSFaceTiltEffect::isActive() const
     return m_enabled && m_havePose && m_client->isConnected();
 }
 
-void ViewOSFaceTiltEffect::prePaintScreen(KWin::ScreenPrePaintData &data, std::chrono::milliseconds presentTime)
+void ViewOSFaceTiltEffect::prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime)
 {
     if (isActive()) {
         m_needsAnotherFrame = false;
-        KWin::Effect::prePaintScreen(data, presentTime);
+        Effect::prePaintScreen(data, presentTime);
     }
 }
 
-void ViewOSFaceTiltEffect::paintScreen(const KWin::RenderTarget &renderTarget,
-                                       const KWin::RenderViewport &viewport,
-                                       int mask, const QRegion &region, KWin::Output *screen)
+void ViewOSFaceTiltEffect::paintScreen(const RenderTarget &renderTarget,
+                                       const RenderViewport &viewport,
+                                       int mask, const QRegion &region, Output *screen)
 {
-    KWin::Effect::paintScreen(renderTarget, viewport, mask, region, screen);
+    Effect::paintScreen(renderTarget, viewport, mask, region, screen);
 }
 
 void ViewOSFaceTiltEffect::postPaintScreen()
 {
-    KWin::Effect::postPaintScreen();
+    Effect::postPaintScreen();
     if (m_needsAnotherFrame) {
-        KWin::EffectsHandler::self()->addRepaintFull();
+        EffectsHandler::self()->addRepaintFull();
     }
 }
 
-void ViewOSFaceTiltEffect::prePaintWindow(KWin::EffectWindow *w,
-                                          KWin::WindowPrePaintData &data,
+void ViewOSFaceTiltEffect::prePaintWindow(EffectWindow *w,
+                                          WindowPrePaintData &data,
                                           std::chrono::milliseconds presentTime)
 {
     if (!isEligible(w)) {
-        KWin::Effect::prePaintWindow(w, data, presentTime);
+        Effect::prePaintWindow(w, data, presentTime);
         return;
     }
 
     data.setTransformed();
 
     if (!m_havePose || m_pose.confidence < m_minConfidence) {
-        KWin::Effect::prePaintWindow(w, data, presentTime);
+        Effect::prePaintWindow(w, data, presentTime);
         return;
     }
 
     const QRectF geom = w->frameGeometry();
-    const QPointF centreFraction(geom.center().x() / KWin::EffectsHandler::self()->screenSize().width(),
-                                 geom.center().y() / KWin::EffectsHandler::self()->screenSize().height());
+    const QPointF centreFraction(geom.center().x() / EffectsHandler::self()->screenSize().width(),
+                                 geom.center().y() / EffectsHandler::self()->screenSize().height());
 
     QVector3D axis;
     float angle;
@@ -111,7 +114,7 @@ void ViewOSFaceTiltEffect::prePaintWindow(KWin::EffectWindow *w,
     }
 
     if (!m_smoothed[w->internalId()].initialised) {
-        KWin::Effect::prePaintWindow(w, data, presentTime);
+        Effect::prePaintWindow(w, data, presentTime);
         return;
     }
 
@@ -120,15 +123,15 @@ void ViewOSFaceTiltEffect::prePaintWindow(KWin::EffectWindow *w,
     data.setRotationAxis(s.axis);
     data.setRotationOrigin(QVector3D(geom.center().x(), geom.center().y(), 0.0f));
 
-    KWin::Effect::prePaintWindow(w, data, presentTime);
+    Effect::prePaintWindow(w, data, presentTime);
 }
 
-void ViewOSFaceTiltEffect::paintWindow(const KWin::RenderTarget &renderTarget,
-                                       const KWin::RenderViewport &viewport,
-                                       KWin::EffectWindow *w, int mask,
-                                       QRegion region, KWin::WindowPaintData &data)
+void ViewOSFaceTiltEffect::paintWindow(const RenderTarget &renderTarget,
+                                       const RenderViewport &viewport,
+                                       EffectWindow *w, int mask,
+                                       QRegion region, WindowPaintData &data)
 {
-    KWin::Effect::paintWindow(renderTarget, viewport, w, mask, region, data);
+    Effect::paintWindow(renderTarget, viewport, w, mask, region, data);
 }
 
 void ViewOSFaceTiltEffect::loadConfig()
@@ -150,7 +153,7 @@ void ViewOSFaceTiltEffect::loadConfig()
     }
 }
 
-bool ViewOSFaceTiltEffect::isEligible(KWin::EffectWindow *w) const
+bool ViewOSFaceTiltEffect::isEligible(EffectWindow *w) const
 {
     if (!w || w->isDeleted() || w->isHidden() || w->isMinimized() || !w->isVisible() ||
         !w->isOnCurrentDesktop() || w->isDesktop() || w->isDock() || w->isToolbar() ||
@@ -219,28 +222,10 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
     if (m_invertPitch) axis.setY(-axis.y());
 }
 
-K_PLUGIN_FACTORY(ViewOSFaceTiltEffectFactory,
-                registerPlugin<ViewOSFaceTiltEffect>())
+} // namespace KWin
 
-// Override metaData to serve embedded JSON from resource
-class ViewOSFaceTiltEffectFactoryExporter : public ViewOSFaceTiltEffectFactory
-{
-    Q_OBJECT
-public:
-    QJsonObject metaData() const override
-    {
-        QFile file(QStringLiteral(":/metadata.json"));
-        if (!file.open(QIODevice::ReadOnly)) {
-            return {};
-        }
-        const QByteArray data = file.readAll();
-        QJsonParseError error;
-        const QJsonDocument doc = QJsonDocument::fromJson(data, &error);
-        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-            return {};
-        }
-        return doc.object();
-    }
-};
+K_PLUGIN_FACTORY_WITH_JSON(ViewOSFaceTiltEffectFactory,
+                          "metadata.json",
+                          registerPlugin<KWin::ViewOSFaceTiltEffect>())
 
 #include "viewosfacetilt.moc"
