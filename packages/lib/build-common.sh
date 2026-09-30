@@ -7,7 +7,8 @@
 set -euo pipefail
 
 # Root of the repository, regardless of where this file is sourced from.
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# This file lives in packages/lib/, so the repository root is two levels up.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PACKAGE_SRC_DIR="${REPO_ROOT}/packages"
 PACKAGE_OUT_DIR="${PACKAGE_SRC_DIR}/build"
 

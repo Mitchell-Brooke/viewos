@@ -78,27 +78,22 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          # kwin-dev pulls in the KF6 headers and libepoxy-dev. libwayland-dev
-          # is needed because KWinConfig.cmake does find_dependency(Wayland
-          # Server) even when building a plugin, and epoxy is required by the
-          # same file.
+          # kwin-dev pulls in the KF6 headers. Qt6's core and gui development
+          # files are both in qt6-base-dev; there is no libqt6core6t64-dev,
+          # the t64 suffix applies to the runtime library only.
+          #
+          # libwayland-dev is needed because KWinConfig.cmake does
+          # find_dependency(Wayland Server) even when building a plugin, and
+          # epoxy is required by the same file.
           apt-get install --yes --no-install-recommends \
             build-essential \
             cmake \
             extra-cmake-modules \
             pkg-config \
             kwin-dev \
-            libkf6coreaddons-dev \
-            libkf6config-dev \
-            libkf6windowsystem-dev \
-            libwayland-dev \
-            libepoxy-dev \
-            libqt6core6t64-dev \
-            libqt6gui6 \
             qt6-base-dev \
             qt6-declarative-dev \
             libgl1-mesa-dev \
-            file \
             binutils \
             fakeroot
           rm -rf /var/lib/apt/lists/*
