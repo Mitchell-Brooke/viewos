@@ -344,9 +344,14 @@ public:
         : KPluginFactory(parent, args)
     {
         // Use the (QMetaObject*, factory function) overload to avoid compile-time
-        // template checks. The lambda creates an instance of our effect class.
+        // template checks. The function signature must match
+        // CreateInstanceWithMetaDataFunction exactly.
         registerPlugin(&KWin::ViewOSFaceTiltEffect::staticMetaObject,
-                       [](QObject *parent, const QVariantList &args) {
+                       [](QWidget *widget, QObject *parent,
+                          const KPluginMetaData &data, const QList<QVariant> &args) -> QObject * {
+            Q_UNUSED(widget);
+            Q_UNUSED(data);
+            Q_UNUSED(args);
             return new KWin::ViewOSFaceTiltEffect(parent);
         });
     }
