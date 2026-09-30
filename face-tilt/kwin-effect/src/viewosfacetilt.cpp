@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2026 ViewOS Project
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "viewosfacetilt.h"
 
 #include <effect/core/output.h>
@@ -214,8 +219,28 @@ void ViewOSFaceTiltEffect::targetRotation(const QPointF &centreFraction,
     if (m_invertPitch) axis.setY(-axis.y());
 }
 
-K_PLUGIN_FACTORY_WITH_JSON(ViewOSFaceTiltEffectFactory,
-                          "metadata.json",
-                          registerPlugin<ViewOSFaceTiltEffect>())
+K_PLUGIN_FACTORY(ViewOSFaceTiltEffectFactory,
+                registerPlugin<ViewOSFaceTiltEffect>())
+
+// Override metaData to serve embedded JSON from resource
+class ViewOSFaceTiltEffectFactoryExporter : public ViewOSFaceTiltEffectFactory
+{
+    Q_OBJECT
+public:
+    QJsonObject metaData() const override
+    {
+        QFile file(QStringLiteral(":/metadata.json"));
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        const QByteArray data = file.readAll();
+        QJsonParseError error;
+        const QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            return {};
+        }
+        return doc.object();
+    }
+};
 
 #include "viewosfacetilt.moc"
