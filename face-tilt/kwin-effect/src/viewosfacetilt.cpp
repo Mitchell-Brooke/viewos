@@ -234,18 +234,15 @@ public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
         : KPluginFactory(parent, args)
     {
-        // Register using the public function-pointer overload that takes a factory function.
+        // Register using the public function-pointer overload that takes only a factory function.
         // The lambda signature must match CreateInstanceWithMetaDataFunction exactly:
         // QObject* (*)(QWidget*, QObject*, const KPluginMetaData&, const QList<QVariant>&)
-        registerPlugin(
-            &KWin::ViewOSFaceTiltEffect::staticMetaObject,
-            [](QWidget *widget, QObject *parent,
-               const KPluginMetaData &data, const QList<QVariant> &args) -> QObject * {
-                Q_UNUSED(widget);
-                Q_UNUSED(data);
-                Q_UNUSED(args);
-                return new KWin::ViewOSFaceTiltEffect(parent);
-            });
+        registerPlugin([](QWidget *widget, QObject *parent,
+                          const KPluginMetaData &data, const QList<QVariant> &args) -> QObject * {
+            Q_UNUSED(widget);
+            Q_UNUSED(data);
+            return new KWin::ViewOSFaceTiltEffect(parent);
+        });
     }
 
     QJsonObject metaData() const override
