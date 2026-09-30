@@ -31,7 +31,6 @@ namespace KWin
 class ViewOSFaceTiltEffect : public Effect
 {
     Q_OBJECT
-    K_PLUGIN_CLASS_WITH_JSON(ViewOSFaceTiltEffect, "metadata.json")
 
 public:
     ViewOSFaceTiltEffect();
@@ -128,5 +127,7 @@ private:
      */
     bool m_needsAnotherFrame = false;
 };
+
+K_PLUGIN_CLASS_WITH_JSON(ViewOSFaceTiltEffect, "metadata.json")
 
 } // namespace KWin
