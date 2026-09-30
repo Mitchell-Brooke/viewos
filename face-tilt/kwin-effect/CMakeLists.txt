@@ -15,11 +15,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # libepoxy does not ship a CMake config file, but KWinConfig.cmake calls
-# find_dependency(epoxy). Provide a minimal FindEpoxy.cmake that uses
-# pkg-config so that find_dependency succeeds.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# find_dependency(epoxy). Provide a fake config file via epoxy_DIR so that
+# find_dependency succeeds.
+set(epoxy_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(EPOXY REQUIRED epoxy)
+# pkg_check_modules runs here to populate variables for our epoxyConfig.cmake,
+# which is included by find_dependency(epoxy) via find_package(epoxy).
+pkg_check_modules(PC_EPOXY REQUIRED epoxy)
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
