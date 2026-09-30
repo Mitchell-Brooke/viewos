@@ -1,267 +1,330 @@
 name: Publish ViewOS APT Repository
-true:
+
+# Publishes the ViewOS APT repository to https://mitchell-brooke.github.io/viewos/
+#
+# Triggered by pushes to master so the repository tracks the source, by tags so
+# a release is reproducible from a fixed point, and manually for recovery.
+on:
   push:
-    branches:
-    - master
-    tags:
-    - v*
-  workflow_dispatch: null
+    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Pushing the gh-pages branch needs write access to the repository contents.
 permissions:
   contents: write
+
+# Two publishes racing each other would leave the repository metadata
+# describing only one of them, so serialise rather than cancel: an interrupted
+# publish should finish, not be abandoned half-written.
 concurrency:
   group: apt-repo-publish
   cancel-in-progress: false
+
 env:
+  # Where the built repository is published. This is the single place this URL
+  # appears; docs reference it, so change it there too.
   PAGES_BASE_URL: https://mitchell-brooke.github.io/viewos
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # The metapackage needs nothing but dpkg-deb, so it builds on the runner as
+  # it is. This also keeps the most trivial package as a canary: if this job
+  # breaks, the problem is the packaging or the workflow, not a build
+  # dependency.
+  # ---------------------------------------------------------------------------
   build-desktop:
     name: Build viewos-desktop
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: packages/build-desktop.sh
-    - name: Verify the package declares no files
-      run: "deb=$(ls packages/build/viewos-desktop_*.deb)\nif dpkg-deb --contents\
-        \ \"$deb\" | grep -v '^drwx' | grep -q .; then\n  echo \"::error::viewos-desktop\
-        \ is a metapackage but contains files\"\n  dpkg-deb --contents \"$deb\"\n\
-        \  exit 1\nfi\necho \"viewos-desktop contains no files, as expected\""
-    - uses: actions/upload-artifact@v4
-      with:
-        name: deb-viewos-desktop
-        path: packages/build/viewos-desktop_*.deb
-        if-no-files-found: error
-        retention-days: 30
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: packages/build-desktop.sh
+
+      - name: Verify the package declares no files
+        # A metapackage that has quietly acquired a payload is a bug, but one
+        # that only shows up as a surprise on a user's machine.
+        run: |
+          deb=$(ls packages/build/viewos-desktop_*.deb)
+          if dpkg-deb --contents "$deb" | grep -v '^drwx' | grep -q .; then
+            echo "::error::viewos-desktop is a metapackage but contains files"
+            dpkg-deb --contents "$deb"
+            exit 1
+          fi
+          echo "viewos-desktop contains no files, as expected"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-viewos-desktop
+          path: packages/build/viewos-desktop_*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # The KWin effect needs Plasma 6 headers. Ubuntu's runners do not carry
+  # KF6, so this builds in a Debian Trixie container, which is also the
+  # distribution we are building for: if it compiles there, it will run there.
+  # ---------------------------------------------------------------------------
   build-kwin-effect:
     name: Build viewos-kwin-effect
     runs-on: ubuntu-latest
     container:
       image: debian:trixie-slim
     steps:
-    - uses: actions/checkout@v4
-    - name: Install build dependencies
-      run: "export DEBIAN_FRONTEND=noninteractive\napt-get update\n# kwin-dev pulls\
-        \ in the KF6 headers. Qt6's core and gui development\n# files are both in\
-        \ qt6-base-dev; there is no libqt6core6t64-dev,\n# the t64 suffix applies\
-        \ to the runtime library only.\n#\n# libwayland-dev is needed because KWinConfig.cmake\
-        \ does\n# find_dependency(Wayland Server) even when building a plugin, and\n\
-        # epoxy is required by the same file.\napt-get install --yes --no-install-recommends\
-        \ \\\n  build-essential \\\n  cmake \\\n  extra-cmake-modules \\\n  pkg-config\
-        \ \\\n  kwin-dev \\\n  qt6-base-dev \\\n  qt6-declarative-dev \\\n  libepoxy-dev\
-        \ \\\n  libgl1-mesa-dev \\\n  binutils \\\n  fakeroot\nrm -rf /var/lib/apt/lists/*\n"
-    - name: Build and package
-      run: packages/build-kwin-effect.sh
-    - name: Check the plugin is a loadable module
-      run: "so=$(find packages/viewos-kwin-effect/usr/lib -name 'libviewosfacetilt*.so'\
-        \ -print -quit)\ntest -n \"$so\"\n# KWin loads effects from usr/lib/<triplet>/kwin/effects/plugins.\n\
-        case \"$so\" in\n  */kwin/effects/plugins/*) echo \"installed at $so\" ;;\n\
-        \  *) echo \"::error::plugin installed at $so, which is not a path KWin scans\"\
-        ; exit 1 ;;\nesac\nif readelf -d \"$so\" | grep -q '(SONAME)'; then\n  echo\
-        \ \"::error::plugin has a SONAME and KWin's loader will skip it\"\n  exit\
-        \ 1\nfi\n# Confirm the KPlugin metadata really is embedded. A plugin whose\n\
-        # metadata.json failed to embed loads but is invisible in the\n# Desktop Effects\
-        \ settings, which is very hard to diagnose later.\nstrings \"$so\" | grep\
-        \ -q '\"viewosfacetilt\"' \\\n  || { echo \"::error::KPlugin metadata is not\
-        \ embedded in $so\"; exit 1; }\necho \"metadata embedded\"\n"
-    - uses: actions/upload-artifact@v4
-      with:
-        name: deb-viewos-kwin-effect
-        path: packages/build/viewos-kwin-effect_*.deb
-        if-no-files-found: error
-        retention-days: 30
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          # kwin-dev pulls in the KF6 headers. Qt6's core and gui development
+          # files are both in qt6-base-dev; there is no libqt6core6t64-dev,
+          # the t64 suffix applies to the runtime library only.
+          #
+          # libwayland-dev is needed because KWinConfig.cmake does
+          # find_dependency(Wayland Server) even when building a plugin, and
+          # epoxy is required by the same file.
+          apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            extra-cmake-modules \
+            pkg-config \
+            kwin-dev \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            libepoxy-dev \
+            libgl1-mesa-dev \
+            binutils \
+            fakeroot
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Build and package
+        run: packages/build-kwin-effect.sh
+
+      - name: Check the plugin is a loadable module
+        run: |
+          so=$(find packages/viewos-kwin-effect/usr/lib -name 'libviewosfacetilt*.so' -print -quit)
+          test -n "$so"
+          # KWin loads effects from usr/lib/<triplet>/kwin/effects/plugins.
+          case "$so" in
+            */kwin/effects/plugins/*) echo "installed at $so" ;;
+            *) echo "::error::plugin installed at $so, which is not a path KWin scans"; exit 1 ;;
+          esac
+          if readelf -d "$so" | grep -q '(SONAME)'; then
+            echo "::error::plugin has a SONAME and KWin's loader will skip it"
+            exit 1
+          fi
+          # Confirm the KPlugin metadata really is embedded. A plugin whose
+          # metadata.json failed to embed loads but is invisible in the
+          # Desktop Effects settings, which is very hard to diagnose later.
+          strings "$so" | grep -q '"viewosfacetilt"' \
+            || { echo "::error::KPlugin metadata is not embedded in $so"; exit 1; }
+          echo "metadata embedded"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-viewos-kwin-effect
+          path: packages/build/viewos-kwin-effect_*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # The Rust daemon needs a toolchain and system OpenCV, so it also builds in
+  # a Trixie container.
+  # ---------------------------------------------------------------------------
   build-face-daemon:
     name: Build viewos-face-daemon
     runs-on: ubuntu-latest
     container:
       image: debian:trixie-slim
     steps:
-    - uses: actions/checkout@v4
-    - name: Install build dependencies
-      run: "export DEBIAN_FRONTEND=noninteractive\napt-get update\napt-get install\
-        \ --yes --no-install-recommends \\\n  build-essential \\\n  cmake \\\n  pkg-config\
-        \ \\\n  curl \\\n  ca-certificates \\\n  rustc \\\n  cargo \\\n  libopencv-dev\
-        \ \\\n  fakeroot\nrm -rf /var/lib/apt/lists/*\n"
-    - name: Report the toolchain versions
-      run: 'rustc --version
+      - uses: actions/checkout@v4
 
-        cargo --version
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            curl \
+            ca-certificates \
+            rustc \
+            cargo \
+            libopencv-dev \
+            fakeroot \
+            llvm-dev
+          rm -rf /var/lib/apt/lists/*
 
-        pkg-config --modversion opencv4
+      - name: Report the toolchain versions
+        # Recorded in the log because the usual first question about a Rust
+        # build failure is "which compiler?".
+        run: |
+          rustc --version
+          cargo --version
+          pkg-config --modversion opencv4
 
-        '
-    - name: Build and package
-      run: packages/build-face-daemon.sh
-    - name: Run the unit tests
-      run: 'export OPENCV_INCLUDE_PATHS="+/usr/include/opencv4"
+      - name: Build and package
+        run: packages/build-face-daemon.sh
 
-        export OPENCV_LINK_PATHS="+/usr/lib/x86_64-linux-gnu"
+      - name: Run the unit tests
+        # Tests are compiled but not run during the build above, because the
+        # synthetic pose test needs OpenCV's DNN loader to be present and we
+        # would rather not pay for it twice.
+        run: |
+          export OPENCV_INCLUDE_PATHS="+/usr/include/opencv4"
+          export OPENCV_LINK_PATHS="+/usr/lib/x86_64-linux-gnu"
+          export OPENCV_LINK_LIBS="+,opencv_core,opencv_imgproc,opencv_imgcodecs,opencv_dnn,opencv_videoio,opencv_video,opencv_calib3d,opencv_features2d,opencv_flann"
+          cargo test --manifest-path face-tilt/daemon/Cargo.toml --release
 
-        export OPENCV_LINK_LIBS="+,opencv_core,opencv_imgproc,opencv_imgcodecs,opencv_dnn,opencv_videoio,opencv_video,opencv_calib3d,opencv_features2d,opencv_flann"
+      - name: Check the binary links only libraries Debian provides
+        run: |
+          # A Rust binary that statically pulled in something, or that depends
+          # on a library not in the package's Depends, fails at the user's desk
+          # with a version mismatch rather than anything resembling a bug
+          # report.
+          bin=packages/viewos-face-daemon/usr/bin/viewos-face-daemon
+          ldd "$bin" | tee /dev/stderr | grep -q 'libopencv_dnn' \
+            || { echo "::error::binary is not linked against OpenCV DNN"; exit 1; }
+          echo "linked against OpenCV as expected"
 
-        cargo test --manifest-path face-tilt/daemon/Cargo.toml --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-viewos-face-daemon
+          path: packages/build/viewos-face-daemon_*.deb
+          if-no-files-found: error
+          retention-days: 30
 
-        '
-    - name: Check the binary links only libraries Debian provides
-      run: "# A Rust binary that statically pulled in something, or that depends\n\
-        # on a library not in the package's Depends, fails at the user's desk\n# with\
-        \ a version mismatch rather than anything resembling a bug\n# report.\nbin=packages/viewos-face-daemon/usr/bin/viewos-face-daemon\n\
-        ldd \"$bin\" | tee /dev/stderr | grep -q 'libopencv_dnn' \\\n  || { echo \"\
-        ::error::binary is not linked against OpenCV DNN\"; exit 1; }\necho \"linked\
-        \ against OpenCV as expected\"\n"
-    - uses: actions/upload-artifact@v4
-      with:
-        name: deb-viewos-face-daemon
-        path: packages/build/viewos-face-daemon_*.deb
-        if-no-files-found: error
-        retention-days: 30
+  # ---------------------------------------------------------------------------
+  # Sign everything with one key and publish the repository.
+  # ---------------------------------------------------------------------------
   publish:
     name: Sign and publish
-    needs:
-    - build-desktop
-    - build-kwin-effect
-    - build-face-daemon
+    needs: [build-desktop, build-kwin-effect, build-face-daemon]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - uses: actions/download-artifact@v4
-      with:
-        path: debs
-        pattern: deb-*
-        merge-multiple: true
-    - name: List what is about to be published
-      run: 'ls -la debs/
+      - uses: actions/checkout@v4
+        with:
+          # Deploying a branch that is not the default branch needs the full
+          # history so the action can force-push over the previous deploy.
+          fetch-depth: 0
 
-        count=$(ls debs/*.deb | wc -l)
+      - uses: actions/download-artifact@v4
+        with:
+          path: debs
+          pattern: deb-*
+          merge-multiple: true
 
-        echo "publishing $count package(s)"
+      - name: List what is about to be published
+        run: |
+          ls -la debs/
+          count=$(ls debs/*.deb | wc -l)
+          echo "publishing $count package(s)"
+          test "$count" -ge 3 || { echo "::error::expected at least 3 packages"; exit 1; }
 
-        test "$count" -ge 3 || { echo "::error::expected at least 3 packages"; exit
-        1; }
+      - name: Install reprepro
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends reprepro gnupg
 
-        '
-    - name: Install reprepro
-      run: 'sudo apt-get update
+      - name: Import the signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # Trust the key fully so reprepro and gpg-agent will use it without
+          # prompting. In CI this is not a trust decision: the key was put in
+          # this repository's secrets by someone who already has write access.
+          KEYID=$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/{print $10; exit}')
+          echo "key id: $KEYID"
+          echo "${KEYID}:6:" | gpg --batch --import-ownertrust
+          gpg --batch --with-colons --list-secret-keys
 
-        sudo apt-get install --yes --no-install-recommends reprepro gnupg
+      - name: Cache the passphrase in gpg-agent
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          # The agent caches an unlocked passphrase for two hours, so
+          # reprepro can sign the Release file, the Contents files and the
+          # per-package metadata without being handed the passphrase at every
+          # step. This is a CI-only convenience; see docs/building.md for how
+          # the offline master key is meant to be used instead.
+          echo "allow-preset-passphrase ${GPG_PASSPHRASE}" >> ~/.gnupg/gpg-agent.conf
+          echo "default-cache-ttl 7200" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --reload gpg-agent
+          # Fail here rather than midway through publishing.
+          echo test | gpg --batch --sign --local-user "$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/{print $10; exit}')" >/dev/null
+          echo "signing works"
 
-        '
-    - name: Import the signing key
-      env:
-        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      run: 'echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: Build the repository
+        run: |
+          mkdir -p repo/conf
+          # reprepro wants the GPG home to be usable; the runner's is owned by
+          # the invoking user already.
+          export GNUPGHOME="${HOME}/.gnupg"
+          cp -a debs/*.deb repo/
+          cd repo
+          for deb in *.deb; do
+            reprepro --export=never includedeb trixie "$deb"
+          done
+          echo "--- dists/trixie ---"
+          find dists -maxdepth 3 -type d | sort
 
-        # Trust the key fully so reprepro and gpg-agent will use it without
+      - name: Export the public signing key
+        run: |
+          KEYID=$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr:/{print $10; exit}')
+          # apt wants a binary keyring, so the armored export is dearmored here
+          # rather than making every user do it.
+          gpg --batch --yes --export "$KEYID" > repo/signing-key.gpg
+          gpg --batch --yes --armor --export "$KEYID" > repo/signing-key.asc
+          test -s repo/signing-key.gpg || { echo "::error::empty key export"; exit 1; }
+          ls -la repo/signing-key.*
 
-        # prompting. In CI this is not a trust decision: the key was put in
+      - name: Verify the repository is self-consistent
+        run: |
+          export GNUPGHOME="${HOME}/.gnupg"
+          cd repo
+          # Recompute the whole index and compare. A repository that cannot
+          # survive its own export is broken in a way users hit as
+          # "Hash Sum mismatch" days later.
+          reprepro export
+          if [ -n "$(find dists -name 'InRelease' -o -name 'Release.gpg')" ]; then
+            echo "Release is signed"
+          else
+            echo "::error::no signed Release file was produced"
+            exit 1
+          fi
+          test -f dists/trixie/main/binary-amd64/Packages.gz \
+            || { echo "::error::no Packages index"; exit 1; }
+          zcat dists/trixie/main/binary-amd64/Packages.gz | grep -c '^Package: '
 
-        # this repository''s secrets by someone who already has write access.
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo
+          publish_branch: gh-pages
+          # The repository is entirely generated, and the previous copy is
+          # fully reconstructible from this run, so replacing it wholesale is
+          # both safe and avoids the history of a repository that only ever
+          # contains build output.
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
+          commit_message: "Publish ViewOS APT repository"
 
-        KEYID=$(gpg --batch --with-colons --list-secret-keys | awk -F: ''/^fpr:/{print
-        $10; exit}'')
-
-        echo "key id: $KEYID"
-
-        echo "${KEYID}:6:" | gpg --batch --import-ownertrust
-
-        gpg --batch --with-colons --list-secret-keys
-
-        '
-    - name: Cache the passphrase in gpg-agent
-      env:
-        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      run: '# The agent caches an unlocked passphrase for two hours, so
-
-        # reprepro can sign the Release file, the Contents files and the
-
-        # per-package metadata without being handed the passphrase at every
-
-        # step. This is a CI-only convenience; see docs/building.md for how
-
-        # the offline master key is meant to be used instead.
-
-        echo "allow-preset-passphrase ${GPG_PASSPHRASE}" >> ~/.gnupg/gpg-agent.conf
-
-        echo "default-cache-ttl 7200" >> ~/.gnupg/gpg-agent.conf
-
-        gpgconf --reload gpg-agent
-
-        # Fail here rather than midway through publishing.
-
-        echo test | gpg --batch --sign --local-user "$(gpg --batch --with-colons --list-secret-keys
-        | awk -F: ''/^fpr:/{print $10; exit}'')" >/dev/null
-
-        echo "signing works"
-
-        '
-    - name: Build the repository
-      run: "mkdir -p repo/conf\n# reprepro wants the GPG home to be usable; the runner's\
-        \ is owned by\n# the invoking user already.\nexport GNUPGHOME=\"${HOME}/.gnupg\"\
-        \ncp -a debs/*.deb repo/\ncd repo\nfor deb in *.deb; do\n  reprepro --export=never\
-        \ includedeb trixie \"$deb\"\ndone\necho \"--- dists/trixie ---\"\nfind dists\
-        \ -maxdepth 3 -type d | sort\n"
-    - name: Export the public signing key
-      run: 'KEYID=$(gpg --batch --with-colons --list-secret-keys | awk -F: ''/^fpr:/{print
-        $10; exit}'')
-
-        # apt wants a binary keyring, so the armored export is dearmored here
-
-        # rather than making every user do it.
-
-        gpg --batch --yes --export "$KEYID" > repo/signing-key.gpg
-
-        gpg --batch --yes --armor --export "$KEYID" > repo/signing-key.asc
-
-        test -s repo/signing-key.gpg || { echo "::error::empty key export"; exit 1;
-        }
-
-        ls -la repo/signing-key.*
-
-        '
-    - name: Verify the repository is self-consistent
-      run: "export GNUPGHOME=\"${HOME}/.gnupg\"\ncd repo\n# Recompute the whole index\
-        \ and compare. A repository that cannot\n# survive its own export is broken\
-        \ in a way users hit as\n# \"Hash Sum mismatch\" days later.\nreprepro export\n\
-        if [ -n \"$(find dists -name 'InRelease' -o -name 'Release.gpg')\" ]; then\n\
-        \  echo \"Release is signed\"\nelse\n  echo \"::error::no signed Release file\
-        \ was produced\"\n  exit 1\nfi\ntest -f dists/trixie/main/binary-amd64/Packages.gz\
-        \ \\\n  || { echo \"::error::no Packages index\"; exit 1; }\nzcat dists/trixie/main/binary-amd64/Packages.gz\
-        \ | grep -c '^Package: '\n"
-    - name: Publish to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./repo
-        publish_branch: gh-pages
-        force_orphan: true
-        user_name: github-actions[bot]
-        user_email: github-actions[bot]@users.noreply.github.com
-        commit_message: Publish ViewOS APT repository
-    - name: Record the published URL
-      run: 'echo "### APT repository published" >> "$GITHUB_STEP_SUMMARY"
-
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-
-        echo "Base URL: \`${PAGES_BASE_URL}\`" >> "$GITHUB_STEP_SUMMARY"
-
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-
-        echo ''To use it on a ViewOS or Debian system:'' >> "$GITHUB_STEP_SUMMARY"
-
-        echo "" >> "$GITHUB_STEP_SUMMARY"
-
-        echo ''```sh'' >> "$GITHUB_STEP_SUMMARY"
-
-        echo "curl -fsSL ${PAGES_BASE_URL}/signing-key.gpg | sudo tee /usr/share/keyrings/viewos-archive-keyring.gpg
-        >/dev/null" >> "$GITHUB_STEP_SUMMARY"
-
-        echo "echo ''deb [signed-by=/usr/share/keyrings/viewos-archive-keyring.gpg]
-        ${PAGES_BASE_URL} trixie main'' | sudo tee /etc/apt/sources.list.d/viewos.list"
-        >> "$GITHUB_STEP_SUMMARY"
-
-        echo "sudo apt update" >> "$GITHUB_STEP_SUMMARY"
-
-        echo ''```'' >> "$GITHUB_STEP_SUMMARY"
-
-        '
+      - name: Record the published URL
+        run: |
+          echo "### APT repository published" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Base URL: \`${PAGES_BASE_URL}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo 'To use it on a ViewOS or Debian system:' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```sh' >> "$GITHUB_STEP_SUMMARY"
+          echo "curl -fsSL ${PAGES_BASE_URL}/signing-key.gpg | sudo tee /usr/share/keyrings/viewos-archive-keyring.gpg >/dev/null" >> "$GITHUB_STEP_SUMMARY"
+          echo "echo 'deb [signed-by=/usr/share/keyrings/viewos-archive-keyring.gpg] ${PAGES_BASE_URL} trixie main' | sudo tee /etc/apt/sources.list.d/viewos.list" >> "$GITHUB_STEP_SUMMARY"
+          echo "sudo apt update" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
