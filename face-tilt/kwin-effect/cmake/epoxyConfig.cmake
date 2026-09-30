@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 ViewOS Project
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# epoxyConfig.cmake - Fake config file for libepoxy
+#
+# libepoxy doesn't provide a CMake config file. This file is placed in a
+# directory that is added to CMAKE_PREFIX_PATH so find_package(epoxy) finds
+# it. KWinConfig.cmake calls find_dependency(epoxy) which loads this file.
+#
+# KWinTargets.cmake expects a target named `epoxy::epoxy` (lowercase).
+
+# Use pkg-config to get the actual flags
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PC_EPOXY REQUIRED epoxy)
+
+# Create the imported target that KWin expects
+if(NOT TARGET epoxy::epoxy)
+    add_library(epoxy::epoxy INTERFACE IMPORTED)
+    set_target_properties(epoxy::epoxy PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${PC_EPOXY_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES "${PC_EPOXY_LIBRARIES}"
+        INTERFACE_COMPILE_OPTIONS "${PC_EPOXY_CFLAGS_OTHER}"
+    )
+endif()
+
+# Provide the standard config-file variables
+set(EPOXY_FOUND TRUE)
+set(EPOXY_VERSION "${PC_EPOXY_VERSION}")
+set(EPOXY_INCLUDE_DIRS "${PC_EPOXY_INCLUDE_DIRS}")
+set(EPOXY_LIBRARIES "${PC_EPOXY_LIBRARIES}")
+set(EPOXY_DEFINITIONS "${PC_EPOXY_CFLAGS_OTHER}")
+
+# Compatibility with find_dependency expectations
+set(epoxy_FOUND ${EPOXY_FOUND})
+set(epoxy_VERSION ${EPOXY_VERSION})
+set(epoxy_INCLUDE_DIRS ${EPOXY_INCLUDE_DIRS})
+set(epoxy_LIBRARIES ${EPOXY_LIBRARIES})
