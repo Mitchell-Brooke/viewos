@@ -6,7 +6,6 @@
 #include "viewosfacetilt.h"
 
 #include <kwin/core/output.h>
-#include <kwin/logging.h>
 
 #include <KConfigGroup>
 #include <KPluginFactory>
@@ -22,6 +21,8 @@
 
 namespace KWin
 {
+
+Q_LOGGING_CATEGORY(VIEWOS_FACE_TILT, "kwin.viewosfacetilt", QtWarningMsg)
 
 namespace
 {
@@ -80,7 +81,7 @@ void ViewOSFaceTiltEffect::loadConfig()
         resetToNeutral();
     }
 
-    qCDebug(KWIN_EFFECTS) << "ViewOS face tilt configured: enabled" << m_enabled << "maxAngle"
+    qCDebug(VIEWOS_FACE_TILT) << "ViewOS face tilt configured: enabled" << m_enabled << "maxAngle"
                           << m_maxAngleDeg << "smoothing" << m_smoothing;
 }
 
@@ -91,7 +92,7 @@ bool ViewOSFaceTiltEffect::isActive() const
 
 void ViewOSFaceTiltEffect::onConnectionChanged(bool connected)
 {
-    qCDebug(KWIN_EFFECTS) << "face-tilt daemon connection" << (connected ? "established" : "lost");
+    qCDebug(VIEWOS_FACE_TILT) << "face-tilt daemon connection" << (connected ? "established" : "lost");
     if (!connected) {
         // Without a daemon there is no pose. Snap back to neutral and stop
         // repainting rather than freezing windows at their last angle.
