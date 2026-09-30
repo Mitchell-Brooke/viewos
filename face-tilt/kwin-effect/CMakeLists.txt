@@ -14,11 +14,59 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # The effect is a loadable module, not something to be linked into anything.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# libepoxy does not ship a CMake config file, but KWinConfig.cmake calls
-# find_dependency(epoxy) which requires one. Provide our own config file in
-# a local cmake/ directory and add it to CMAKE_PREFIX_PATH so find_package
-# finds it.
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# libepoxy does not ship a CMake config file, but KWinTargets.cmake expects
+# an imported target named epoxy::epoxy in its INTERFACE_LINK_LIBRARIES.
+# Create it directly using execute_process to run pkg-config at configure time,
+# so the target exists before find_package(KWin) is called.
+execute_process(
+    COMMAND pkg-config --cflags --libs epoxy
+    OUTPUT_VARIABLE EPOXY_PKG_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE EPOXY_PKG_RESULT
+)
+if(EPOXY_PKG_RESULT)
+    message(FATAL_ERROR "pkg-config failed to find epoxy: ${EPOXY_PKG_RESULT}")
+endif()
+
+# Parse the output into include dirs and libraries
+# pkg-config output looks like: -I/usr/include -L/usr/lib -lepoxy
+string(REGEX MATCHALL "-I[^ ]+" EPOXY_INCLUDE_FLAGS "${EPOXY_PKG_OUTPUT}")
+string(REGEX MATCHALL "-l[^ ]+" EPOXY_LIB_FLAGS "${EPOXY_PKG_OUTPUT}")
+string(REGEX MATCHALL "-L[^ ]+" EPOXY_LIBDIR_FLAGS "${EPOXY_PKG_OUTPUT}")
+
+# Convert -I/path to /path for INTERFACE_INCLUDE_DIRECTORIES
+set(EPOXY_INCLUDE_DIRS "")
+foreach(flag ${EPOXY_INCLUDE_FLAGS})
+    string(REGEX REPLACE "^-I" "" path "${flag}")
+    list(APPEND EPOXY_INCLUDE_DIRS "${path}")
+endforeach()
+
+# Convert -lname to name for INTERFACE_LINK_LIBRARIES
+set(EPOXY_LIBRARIES "")
+foreach(flag ${EPOXY_LIB_FLAGS})
+    string(REGEX REPLACE "^-l" "" lib "${flag}")
+    list(APPEND EPOXY_LIBRARIES "${lib}")
+endforeach()
+
+# Convert -L/path for link directories (not usually needed for imported targets)
+set(EPOXY_LIBRARY_DIRS "")
+foreach(flag ${EPOXY_LIBDIR_FLAGS})
+    string(REGEX REPLACE "^-L" "" path "${flag}")
+    list(APPEND EPOXY_LIBRARY_DIRS "${path}")
+endforeach()
+
+# Create the imported target that KWinTargets.cmake expects
+if(NOT TARGET epoxy::epoxy)
+    add_library(epoxy::epoxy INTERFACE IMPORTED)
+    set_target_properties(epoxy::epoxy PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${EPOXY_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES "${EPOXY_LIBRARIES}"
+        INTERFACE_LINK_DIRECTORIES "${EPOXY_LIBRARY_DIRS}"
+    )
+endif()
+
+# Mark epoxy as found so find_dependency(epoxy) in KWinConfig.cmake is satisfied
+set(epoxy_FOUND TRUE)
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
