@@ -14,14 +14,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # The effect is a loadable module, not something to be linked into anything.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# libepoxy does not ship a CMake config file, but KWinConfig.cmake calls
-# find_dependency(epoxy). Provide a fake config file via epoxy_DIR so that
-# find_dependency succeeds.
-set(epoxy_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# libepoxy does not ship a CMake config file, but KWinTargets.cmake expects
+# an imported target named epoxy::epoxy in its INTERFACE_LINK_LIBRARIES.
+# Create it directly using pkg-config before find_package(KWin), so it exists
+# when KWinTargets.cmake is included.
 find_package(PkgConfig REQUIRED)
-# pkg_check_modules runs here to populate variables for our epoxyConfig.cmake,
-# which is included by find_dependency(epoxy) via find_package(epoxy).
 pkg_check_modules(PC_EPOXY REQUIRED epoxy)
+
+if(NOT TARGET epoxy::epoxy)
+    add_library(epoxy::epoxy INTERFACE IMPORTED)
+    set_target_properties(epoxy::epoxy PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${PC_EPOXY_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES "${PC_EPOXY_LIBRARIES}"
+        INTERFACE_COMPILE_OPTIONS "${PC_EPOXY_CFLAGS_OTHER}"
+    )
+endif()
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
 
