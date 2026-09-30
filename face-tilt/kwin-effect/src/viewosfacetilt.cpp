@@ -5,7 +5,7 @@
 
 #include "viewosfacetilt.h"
 
-#include <effect/core/output.h>
+#include <core/output.h>
 
 #include <KConfigGroup>
 #include <KPluginFactory>
