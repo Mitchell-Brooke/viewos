@@ -15,13 +15,23 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(ECM 6.10 REQUIRED NO_MODULE)
-include(KDEInstallDirs)
-include(KDECMakeSettings)
-include(KDECompilerSettings NO_POLICY_SCOPE)
 
-# Pulls in Qt6, KF6 and defines the imported target KWin::kwin. It also pulls
-# in KF6CoreAddons, which is where the kcoreaddons_add_plugin() macro used
-# below comes from.
+# ECM 6.x places the KDE helper modules under kde-modules/, and they
+# are NOT added to CMAKE_MODULE_PATH by ECMConfig.cmake. Include them
+# explicitly from ECM_MODULE_DIR, which ECMConfig.cmake does set.
+# Guard against ECM < 5.82 where the layout was different.
+if(EXISTS "${ECM_MODULE_DIR}/kde-modules/KDEInstallDirs.cmake")
+    include("${ECM_MODULE_DIR}/kde-modules/KDEInstallDirs.cmake")
+    include("${ECM_MODULE_DIR}/kde-modules/KDECMakeSettings.cmake")
+    include("${ECM_MODULE_DIR}/kde-modules/KDECompilerSettings.cmake" NO_POLICY_SCOPE)
+else()
+    include(KDEInstallDirs)
+    include(KDECMakeSettings)
+    include(KDECompilerSettings NO_POLICY_SCOPE)
+endif()
+
+# Pulls in Qt6, KF6 and defines the imported target KWin::kwin.
+# It also pulls in KF6CoreAddons, which provides kcoreaddons_add_plugin().
 find_package(KWin 6.0 REQUIRED)
 
 # Builds a MODULE library, sets LIBRARY_OUTPUT_DIRECTORY so the plugin can be

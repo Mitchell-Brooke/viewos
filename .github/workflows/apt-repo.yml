@@ -93,6 +93,7 @@ jobs:
             kwin-dev \
             qt6-base-dev \
             qt6-declarative-dev \
+            libepoxy-dev \
             libgl1-mesa-dev \
             binutils \
             fakeroot

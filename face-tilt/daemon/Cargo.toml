@@ -20,11 +20,15 @@ path = "src/lib.rs"
 [dependencies]
 # OpenCV bindings for the YuNet detector, PnP pose solver and webcam capture.
 #
+# Pinned to 0.98.2 because Trixie ships rustc 1.85.1 and opencv 0.99+
+# requires rustc 1.88.0. 0.98.2 works with rustc >= 1.82.0 and supports
+# all the features we use (dnn, videoio, calib3d).
+#
 # default-features = false is deliberate: the default feature set pulls in
 # every OpenCV module, including the CUDA ones, which we neither need nor can
 # link against on a machine without the NVIDIA toolkit. The features listed
 # here are the transitive minimum for dnn + videoio + calib3d.
-opencv = { version = "0.101", default-features = false, features = [
+opencv = { version = "0.98.2", default-features = false, features = [
     "dnn",
     "videoio",
     "calib3d",
