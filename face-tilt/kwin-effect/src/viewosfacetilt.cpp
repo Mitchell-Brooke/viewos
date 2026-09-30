@@ -332,10 +332,32 @@ void ViewOSFaceTiltEffect::postPaintScreen()
 
 } // namespace KWin
 
-// Declares the effect's KPluginFactory and embeds metadata.json into the
-// shared object, which is where QPluginLoader::metaData() looks for it.
-K_PLUGIN_FACTORY_WITH_JSON(ViewOSFaceTiltEffectFactory,
-                          "metadata.json",
-                          registerPlugin<KWin::ViewOSFaceTiltEffect>())
+// Manually create the plugin factory with embedded metadata.json resource.
+// This avoids K_PLUGIN_FACTORY_WITH_JSON macro issues with template checking.
+class ViewOSFaceTiltEffectFactory : public KPluginFactory
+{
+    Q_OBJECT
+public:
+    ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
+        : KPluginFactory(parent, args)
+    {
+        registerPlugin<KWin::ViewOSFaceTiltEffect>();
+    }
+
+    QJsonObject metaData() const override
+    {
+        QFile file(":/metadata.json");
+        if (!file.open(QIODevice::ReadOnly)) {
+            return {};
+        }
+        const QByteArray data = file.readAll();
+        QJsonParseError error;
+        const QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            return {};
+        }
+        return doc.object();
+    }
+};
 
 #include "viewosfacetilt.moc"

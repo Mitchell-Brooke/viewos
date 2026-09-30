@@ -64,6 +64,7 @@ kcoreaddons_add_plugin(viewosfacetilt
         src/viewosfacetilt.h
         src/faceclient.cpp
         src/faceclient.h
+        viewosfacetilt.qrc
     INSTALL_NAMESPACE "kwin/effects/plugins"
 )
 
