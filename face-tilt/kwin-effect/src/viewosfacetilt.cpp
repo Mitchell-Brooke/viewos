@@ -343,9 +343,10 @@ public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
         : KPluginFactory(parent, args)
     {
-        // Use the function-pointer overload to avoid compile-time template checks.
-        // The lambda creates an instance of our effect class.
-        registerPlugin([](QObject *parent, const QVariantList &args) {
+        // Use the (QMetaObject*, factory function) overload to avoid compile-time
+        // template checks. The lambda creates an instance of our effect class.
+        registerPlugin(&KWin::ViewOSFaceTiltEffect::staticMetaObject,
+                       [](QObject *parent, const QVariantList &args) {
             return new KWin::ViewOSFaceTiltEffect(parent);
         });
     }
