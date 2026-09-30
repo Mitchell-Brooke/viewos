@@ -1,30 +1,53 @@
 #!/bin/bash
-# Build ViewOS KWin Effect package
+# Build the KWin effect, then assemble the viewos-kwin-effect package.
+#
+# Requires a Plasma 6 development environment. On Debian that means the
+# kwin-dev package; the build is otherwise self-contained.
+set -euo pipefail
+# shellcheck source=lib/build-common.sh
+source "$(dirname "$(readlink -f "$0")")/lib/build-common.sh"
 
-set -e
+require cmake dpkg-deb
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EFFECT_DIR="$SCRIPT_DIR/../face-tilt/kwin-effect"
-BUILD_DIR="$SCRIPT_DIR/build-kwin-effect"
-PACKAGE_DIR="$SCRIPT_DIR/viewos-kwin-effect"
-OUTPUT_DIR="$SCRIPT_DIR/build"
+EFFECT_SRC_DIR="${REPO_ROOT}/face-tilt/kwin-effect"
+PKG_SRC_DIR="${PACKAGE_SRC_DIR}/viewos-kwin-effect"
+BUILD_DIR="${EFFECT_SRC_DIR}/build"
 
-mkdir -p "$BUILD_DIR" "$OUTPUT_DIR"
+info "configuring the KWin effect"
+rm -rf "$BUILD_DIR"
+cmake -S "$EFFECT_SRC_DIR" -B "$BUILD_DIR" \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_INSTALL_PREFIX=/usr
 
-# Build the effect
-cd "$EFFECT_DIR"
-cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build "$BUILD_DIR" -j$(nproc)
+info "building the KWin effect"
+cmake --build "$BUILD_DIR" --parallel "$(nproc)"
 
-# Install to package directory
-DESTDIR="$PACKAGE_DIR" cmake --install "$BUILD_DIR"
+info "installing into a staging directory"
+STAGE_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGE_DIR"' EXIT
+cmake --install "$BUILD_DIR" --prefix "$STAGE_DIR"
 
-# Build Debian package
-VERSION=$(grep '^Version:' "$PACKAGE_DIR/DEBIAN/control" | awk '{print $2}')
-ARCH=$(grep '^Architecture:' "$PACKAGE_DIR/DEBIAN/control" | awk '{print $2}')
-PACKAGE_NAME="viewos-kwin-effect_${VERSION}_${ARCH}.deb"
+# The plugin has to be a MODULE, not a shared library. A wrongly linked object
+# still loads, but then carries an SONAME that makes KWin's plugin loader skip
+# it with no useful diagnostic, so the symptom is "the effect silently does
+# not appear". Checking here turns that into a build failure.
+plugin_so="$(find "$STAGE_DIR" -name 'libviewosfacetilt*.so' -print -quit)"
+[ -n "$plugin_so" ] || die "cmake did not install anything called libviewosfacetilt.so"
 
-fakeroot dpkg-deb --build "$PACKAGE_DIR" "$OUTPUT_DIR/$PACKAGE_NAME"
+if readelf -d "$plugin_so" 2>/dev/null | grep -q '(SONAME)'; then
+    die "$(basename "$plugin_so") has a SONAME. It must be built as a CMake MODULE library, \
+otherwise KWin's plugin loader will not find it."
+fi
+info "plugin is a loadable module: ${plugin_so#"$STAGE_DIR"}"
 
-echo "Built: $OUTPUT_DIR/$PACKAGE_NAME"
-dpkg-deb -I "$OUTPUT_DIR/$PACKAGE_NAME"
+# Stage into the package tree so the .deb is built from exactly what was
+# compiled, rather than from a hand-maintained file list that can drift.
+info "populating ${PKG_SRC_DIR}"
+rm -rf "${PKG_SRC_DIR}/usr/lib"
+install -d "${PKG_SRC_DIR}/usr/lib"
+cp -a "$STAGE_DIR/usr/lib/." "${PKG_SRC_DIR}/usr/lib/"
+
+find "${PKG_SRC_DIR}/usr" -type f -printf '%M %p\n' | sed "s|${PKG_SRC_DIR}/||"
+
+deb="$(build_package "$PKG_SRC_DIR")"
+lint_package "$deb"

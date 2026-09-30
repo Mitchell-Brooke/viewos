@@ -1,88 +1,151 @@
+/*
+ * SPDX-FileCopyrightText: 2026 ViewOS Project
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "faceclient.h"
 
+#include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QTimer>
 
-FaceClient::FaceClient(QObject* parent)
+#include <cmath>
+
+namespace ViewOS
+{
+
+namespace
+{
+/**
+ * Guard against a misbehaving or hostile peer making us allocate an unbounded
+ * amount of memory by never sending a newline.
+ */
+constexpr int maxBufferBytes = 64 * 1024;
+}
+
+FaceClient::FaceClient(QObject *parent)
     : QObject(parent)
     , m_socket(new QLocalSocket(this))
+    , m_socketPath(QDir::temp().filePath(QStringLiteral("viewos-face-tilt.sock")))
 {
+    m_socket->setSocketOption(QLocalSocket::LowDelayOption, 1);
+
     connect(m_socket, &QLocalSocket::readyRead, this, &FaceClient::onReadyRead);
     connect(m_socket, &QLocalSocket::connected, this, &FaceClient::onConnected);
     connect(m_socket, &QLocalSocket::disconnected, this, &FaceClient::onDisconnected);
-    connect(m_socket, QOverload<QLocalSocket::LocalSocketError>::of(&QLocalSocket::errorOccurred),
-            this, &FaceClient::onError);
 }
 
 FaceClient::~FaceClient()
 {
-    disconnect();
+    m_socket->abort();
 }
 
-bool FaceClient::connectToDaemon(const QString& socketPath)
+void FaceClient::setSocketPath(const QString &path)
 {
-    if (m_socket->state() == QLocalSocket::ConnectedState) {
-        return true;
+    if (m_socketPath == path) {
+        return;
     }
-
-    m_socket->connectToServer(socketPath);
-    return m_socket->waitForConnected(1000);
+    m_socketPath = path;
+    m_socket->abort();
+    m_buffer.clear();
+    m_reconnectDelayMs = 250;
+    connectToDaemon();
 }
 
-void FaceClient::disconnect()
+bool FaceClient::isConnected() const
+{
+    return m_socket->state() == QLocalSocket::ConnectedState;
+}
+
+void FaceClient::reconnectNow()
+{
+    m_socket->abort();
+    m_reconnectDelayMs = 250;
+    connectToDaemon();
+}
+
+void FaceClient::connectToDaemon()
 {
     if (m_socket->state() != QLocalSocket::UnconnectedState) {
-        m_socket->disconnectFromServer();
-        m_socket->waitForDisconnected(1000);
+        return;
     }
+    m_socket->connectToServer(m_socketPath);
+}
+
+void FaceClient::scheduleReconnect()
+{
+    // Exponential backoff, capped. Reset whenever a connection succeeds so that
+    // a daemon which is restarted once an hour does not end up waiting five
+    // seconds after the first failure of the next outage.
+    QTimer::singleShot(m_reconnectDelayMs, this, &FaceClient::connectToDaemon);
+    m_reconnectDelayMs = qMin(m_reconnectDelayMs * 2, m_maxReconnectDelayMs);
+}
+
+void FaceClient::onConnected()
+{
+    m_reconnectDelayMs = 250;
+    Q_EMIT connectionChanged(true);
+}
+
+void FaceClient::onDisconnected()
+{
+    Q_EMIT connectionChanged(false);
+    scheduleReconnect();
 }
 
 void FaceClient::onReadyRead()
 {
     m_buffer.append(m_socket->readAll());
 
-    while (true) {
-        int newline = m_buffer.indexOf('\n');
-        if (newline < 0) break;
+    if (m_buffer.size() > maxBufferBytes) {
+        // The stream is not newline-delimited, so it cannot be resynchronised
+        // safely. Dropping everything and reconnecting is the only safe
+        // response.
+        m_buffer.clear();
+        m_socket->abort();
+        return;
+    }
 
-        QByteArray line = m_buffer.left(newline);
+    qsizetype newline;
+    while ((newline = m_buffer.indexOf('\n')) >= 0) {
+        const QByteArray line = m_buffer.left(newline);
         m_buffer.remove(0, newline + 1);
 
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(line, &error);
-        if (error.error != QJsonParseError::NoError) {
+        QJsonParseError error{};
+        const QJsonDocument doc = QJsonDocument::fromJson(line, &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
             continue;
         }
 
-        QJsonObject obj = doc.object();
-        TiltData data;
-        data.yaw = obj.value("yaw").toDouble(0.0);
-        data.pitch = obj.value("pitch").toDouble(0.0);
-        data.roll = obj.value("roll").toDouble(0.0);
-        data.confidence = obj.value("confidence").toDouble(0.0);
-        data.timestamp = obj.value("timestamp").toVariant().toLongLong();
+        const QJsonObject obj = doc.object();
 
-        emit tiltDataReceived(data);
+        const int version = obj.value(QStringLiteral("v")).toInt(-1);
+        if (version != protocolVersion) {
+            // Refuse to interpret a protocol we do not understand rather than
+            // silently mis-rendering every window.
+            continue;
+        }
+
+        HeadPose pose;
+        pose.hx = obj.value(QStringLiteral("hx")).toDouble(0.5);
+        pose.hy = obj.value(QStringLiteral("hy")).toDouble(0.5);
+        pose.hz = obj.value(QStringLiteral("hz")).toDouble(600.0);
+        pose.roll = obj.value(QStringLiteral("roll")).toDouble(0.0);
+        pose.confidence = obj.value(QStringLiteral("conf")).toDouble(0.0);
+        pose.timestamp = static_cast<std::int64_t>(
+            static_cast<double>(obj.value(QStringLiteral("t")).toDouble(0.0)));
+
+        if (!std::isfinite(pose.hx) || !std::isfinite(pose.hy) || !std::isfinite(pose.hz)
+            || !std::isfinite(pose.confidence)) {
+            continue;
+        }
+
+        Q_EMIT poseReceived(pose);
     }
 }
 
-void FaceClient::onConnected()
-{
-    emit connectionChanged(true);
-}
+} // namespace ViewOS
 
-void FaceClient::onDisconnected()
-{
-    emit connectionChanged(false);
-    // Auto-reconnect after 5 seconds
-    QTimer::singleShot(5000, this, [this]() {
-        connectToDaemon();
-    });
-}
-
-void FaceClient::onError(QLocalSocket::LocalSocketError error)
-{
-    Q_UNUSED(error);
-    emit errorOccurred(m_socket->errorString());
-}
+#include "faceclient.moc"

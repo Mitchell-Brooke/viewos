@@ -1,23 +1,21 @@
 {
     "KPlugin": {
-        "Name": "ViewOS Face Tilt",
-        "Description": "Tilts windows toward your face using webcam head tracking",
         "Authors": [
             {
                 "Name": "ViewOS Project",
                 "Email": "help@jmultimate.com"
             }
         ],
-        "License": "GPL-3.0-or-later",
-        "Website": "https://viewos.org",
-        "Version": "0.1.0",
         "Category": "Appearance",
+        "Description": "Rotates windows in 3D so that each one faces the position of your head, using a local webcam.",
         "EnabledByDefault": false,
-        "Dependencies": [],
-        "Keywords": ["face", "tracking", "tilt", "perspective", "head", "webcam"]
+        "Id": "viewosfacetilt",
+        "License": "GPL-3.0-or-later",
+        "Name": "ViewOS Face Tilt",
+        "Version": "0.1.0",
+        "Website": "https://github.com/Mitchell-Brooke/viewos"
     },
     "X-KWin-Effect": {
-        "SupportedPlatforms": ["X11", "Wayland"],
         "Configurable": true,
         "RequiresCompositing": true
     }

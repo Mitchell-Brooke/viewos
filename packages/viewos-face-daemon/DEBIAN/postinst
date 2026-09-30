@@ -1,32 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 # postinst for viewos-face-daemon
-
 set -e
 
-# Create socket directory
-mkdir -p /run/viewos
-chown root:video /run/viewos
-chmod 775 /run/viewos
+case "$1" in
+    configure)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl daemon-reload >/dev/null 2>&1 || true
+            # A user unit cannot be enabled from a package maintainer script
+            # in a meaningful way (the enabling user is not necessarily the
+            # user who will run it), so we only reload unit state here.
+        fi
+        ;;
+esac
 
-# Create config directory
-mkdir -p /etc/viewos
-
-# Copy default config if not present
-if [ ! -f /etc/viewos/face-daemon.toml ]; then
-    cp /usr/share/viewos/face-daemon.toml /etc/viewos/face-daemon.toml
-fi
-
-# Install systemd service
-systemctl daemon-reload
-systemctl enable viewos-face-daemon.service 2>/dev/null || true
-
-# Start service if in user session (for live system)
-if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-    systemctl --user start viewos-face-daemon.service 2>/dev/null || true
-fi
-
-echo "ViewOS Face Daemon installed."
-echo "Configure /etc/viewos/face-daemon.toml with your screen dimensions and camera position."
-echo "Start with: systemctl --user start viewos-face-daemon"
+#DEBHELPER#
 
 exit 0

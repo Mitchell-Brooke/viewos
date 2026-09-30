@@ -1,85 +1,131 @@
-#ifndef VIEWOSFACETILT_H
-#define VIEWOSFACETILT_H
+/*
+ * SPDX-FileCopyrightText: 2026 ViewOS Project
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * KWin effect that rotates windows to face the viewer's head.
+ */
+
+#pragma once
 
 #include <kwin/effect.h>
 #include <kwin/effectwindow.h>
-#include <kwin/windowpaintdata.h>
+#include <kwin/effecthandler.h>
 
-#include <QObject>
-#include <QSocketNotifier>
-#include <QTimer>
-#include <QJsonDocument>
-#include <QJsonObject>
+#include "faceclient.h"
+
+#include <QSet>
 
 namespace KWin
 {
 
+/**
+ * Per-window head-facing rotation.
+ *
+ * The effect receives the viewer's head position from viewos-face-daemon as a
+ * position on the screen, then rotates each eligible window about its own
+ * centre so that the window's normal points at the head.
+ *
+ * Windows that would be wrong or unsafe to rotate are excluded; see
+ * isEligible() for the list and the reasoning.
+ */
 class ViewOSFaceTiltEffect : public Effect
 {
     Q_OBJECT
 
 public:
-    explicit ViewOSFaceTiltEffect();
+    ViewOSFaceTiltEffect();
     ~ViewOSFaceTiltEffect() override;
 
-    // Effect interface
     void reconfigure(ReconfigureFlags flags) override;
     bool isActive() const override;
 
-    // Window painting hooks
-    void prePaintWindow(EffectWindow* w, WindowPrePaintData& data, int time) override;
-    void paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data) override;
-    void postPaintWindow(EffectWindow* w) override;
+    void prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime) override;
+    void paintScreen(const RenderTarget &renderTarget, const RenderViewport &viewport, int mask,
+                     const QRegion &region, Output *screen) override;
+    void postPaintScreen() override;
 
-    // Screen painting (for full-screen transforms if needed)
-    void prePaintScreen(ScreenPrePaintData& data, int time) override;
+    void prePaintWindow(EffectWindow *w, WindowPrePaintData &data,
+                        std::chrono::milliseconds presentTime) override;
+    void paintWindow(const RenderTarget &renderTarget, const RenderViewport &viewport, EffectWindow *w,
+                     int mask, QRegion region, WindowPaintData &data) override;
 
-private slots:
-    void onSocketData();
-    void onConfigChanged();
+    /**
+     * Whether this window should be rotated.
+     *
+     * Excluded, with reasoning:
+     *  - fullscreen windows, because rotating them would letterbox or clip
+     *    video and would move the position of on-screen controls out from
+     *    under the pointer;
+     *  - windows whose frame already fills their output, which is how a
+     *    maximised window presents on both X11 and Wayland, for the same
+     *    reason as fullscreen;
+     *  - dialogs, popups, menus, tooltips, notifications, docks, desktops and
+     *    other special windows, because a tilted menu detaches visually from
+     *    the window it belongs to and makes it hard to read;
+     *  - the lock screen and screen saver, which must not move at all while
+     *    the session is locked;
+     *  - input methods and on-screen displays, which have to stay under the
+     *    cursor;
+     *  - anything hidden, minimised, or not on the current desktop, which
+     *    should not be painted transformed at all.
+     */
+    bool isEligible(EffectWindow *w) const;
 
 private:
-    // Exclusion logic
-    bool shouldTransformWindow(EffectWindow* w) const;
+    void loadConfig();
+    void onPoseReceived(const ViewOS::HeadPose &pose);
+    void onConnectionChanged(bool connected);
+    void resetToNeutral();
 
-    // Apply tilt transform to window paint data
-    void applyTiltTransform(EffectWindow* w, WindowPaintData& data);
+    /**
+     * Rotation that makes the window centred at @p centreFraction face the
+     * head, as an axis-angle pair in the maths frame (+X right, +Y up).
+     *
+     * This is the only place where the socket's screen coordinate convention
+     * (Y down) is converted to the maths convention (Y up).
+     */
+    void targetRotation(const QPointF &centreFraction, QVector3D *axis, float *angle) const;
 
-    // Read latest tilt data from socket
-    void readTiltData();
+    /** Smoothing state, per window, keyed by internal window id. */
+    struct Smoothed {
+        QVector3D axis{0.0f, 0.0f, 1.0f};
+        float angle = 0.0f;
+        bool initialised = false;
+    };
 
-    // Socket connection to face daemon
-    int m_socketFd = -1;
-    QSocketNotifier* m_socketNotifier = nullptr;
-    QByteArray m_socketBuffer;
+    ViewOS::FaceClient *m_client;
 
-    // Current tilt state
-    struct TiltState {
-        float yaw = 0.0f;       // degrees, rotation around Y
-        float pitch = 0.0f;     // degrees, rotation around X
-        float roll = 0.0f;      // degrees, rotation around Z
-        float confidence = 0.0f;
-        qint64 timestamp = 0;
-    } m_tiltState;
-
-    // Smoothed tilt state
-    struct TiltState m_smoothedState;
-
-    // Configuration
-    float m_maxAngle = 12.0f;
-    float m_deadzone = 2.0f;
-    float m_smoothing = 0.15f;
-    bool m_invertYaw = false;
-    bool m_invertPitch = true;
     bool m_enabled = false;
+    bool m_havePose = false;
+    ViewOS::HeadPose m_pose;
 
-    // Excluded window types
-    QSet<qint64> m_excludedWindowIds;
+    /**
+     * At most this angle, in degrees, is ever applied. Kept small because the
+     * effect forces a full-screen repaint every time it runs; see
+     * docs/face-tilt.md.
+     */
+    float m_maxAngleDeg = 10.0f;
+    float m_minConfidence = 0.5f;
+    /** 0 = no smoothing, 1 = never moves. Higher means laggier but steadier. */
+    float m_smoothing = 0.25f;
+    /** Multiplier on the computed angle. Allows under- or over-driving. */
+    float m_gain = 1.0f;
 
-    // Timer for config reload
-    QTimer* m_configTimer = nullptr;
+    bool m_invertYaw = false;
+    bool m_invertPitch = false;
+
+    /** Window ids the user has explicitly excluded. */
+    QSet<QUuid> m_excludedWindows;
+
+    QHash<QUuid, Smoothed> m_smoothed;
+
+    /**
+     * Set when new data has arrived since the last repaint, so that
+     * postPaintScreen() knows to ask for another frame. This is what bounds the
+     * effect to the daemon's publish rate: with no new data, no repaint is
+     * requested and the compositor goes idle.
+     */
+    bool m_needsAnotherFrame = false;
 };
 
 } // namespace KWin
-
-#endif // VIEWOSFACETILT_H

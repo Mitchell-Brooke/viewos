@@ -1,21 +1,16 @@
 #!/bin/bash
-# Build ViewOS desktop metapackage
+# Build the viewos-desktop metapackage.
+set -euo pipefail
+# shellcheck source=lib/build-common.sh
+source "$(dirname "$(readlink -f "$0")")/lib/build-common.sh"
 
-set -e
+require dpkg-deb
 
-PACKAGE_DIR="packages/viewos-desktop"
-BUILD_DIR="build"
-VERSION=$(grep '^Version:' "$PACKAGE_DIR/DEBIAN/control" | awk '{print $2}')
-ARCH=$(grep '^Architecture:' "$PACKAGE_DIR/DEBIAN/control" | awk '{print $2}')
-PACKAGE_NAME="viewos-desktop_${VERSION}_${ARCH}.deb"
+deb="$(build_package "${PACKAGE_SRC_DIR}/viewos-desktop")"
+lint_package "$deb"
 
-mkdir -p "$BUILD_DIR"
-
-# Build the package
-fakeroot dpkg-deb --build "$PACKAGE_DIR" "$BUILD_DIR/$PACKAGE_NAME"
-
-# Verify
-dpkg-deb -I "$BUILD_DIR/$PACKAGE_NAME"
-dpkg-deb -c "$BUILD_DIR/$PACKAGE_NAME"
-
-echo "Built: $BUILD_DIR/$PACKAGE_NAME"
+# The metapackage ships no files; if that ever changes this should fail loudly
+# rather than silently producing an empty package.
+if [ -n "$(find "${PACKAGE_SRC_DIR}/viewos-desktop" -path '*/DEBIAN' -prune -o -type f -print -quit)" ]; then
+    die "viewos-desktop is a metapackage but contains payload files"
+fi

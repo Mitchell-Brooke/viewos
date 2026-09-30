@@ -1,0 +1,53 @@
+[Unit]
+Description=ViewOS face tracking daemon
+Documentation=man:viewos-face-daemon(1)
+# Wants a graphical session because head-pose data is only meaningful once
+# there is a compositor to hand it to.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/viewos-face-daemon --config %h/.config/viewos/face-daemon.toml --config-system /usr/share/viewos/face-daemon.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+
+# Publishes head pose on a Unix socket inside the user's own runtime
+# directory. No part of this unit needs root, and nothing is written
+# anywhere else on the filesystem.
+RuntimeDirectory=viewos
+RuntimeDirectoryMode=0700
+
+# The daemon opens no network sockets. Denying the socket families outright
+# turns that claim from a documentation promise into an enforced invariant,
+# and makes the privacy properties in PRIVACY.md verifiable by inspection.
+RestrictAddressFamilies=AF_UNIX
+PrivateNetwork=yes
+IPAddressDeny=any
+
+# No new privileges, no kernel tunables, no control groups.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/usr/share/viewos
+ReadWritePaths=%t/viewos
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+# Deliberately NOT set: MemoryDenyWriteExecute. OpenCV's DNN backends may map
+# executable pages for JIT kernels, and denying that makes detection fail in a
+# way that is very hard to diagnose from the logs.
+
+[Install]
+WantedBy=graphical-session.target

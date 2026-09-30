@@ -1,16 +1,90 @@
 Package: viewos-desktop
-Version: 1.0.0
-Section: metapackages
+Source: viewos
+Version: 0.1.0
+Section: kde
 Priority: optional
 Architecture: amd64
 Maintainer: ViewOS Project <help@jmultimate.com>
-Installed-Size: 12
-Depends: kde-full, kde-plasma-desktop, kde-standard, sddm, network-manager, pipewire, wireplumber, bluez, tlp, firmware-linux, firmware-linux-nonfree, firmware-realtek, firmware-iwlwifi, firmware-atheros, firmware-amd-graphics, firmware-intel-sound, firmware-sof-signed, intel-microcode, amd64-microcode, nvidia-driver, nvidia-driver-libs, nvidia-kernel-dkms, nvidia-settings, nvidia-xconfig, xserver-xorg-video-nouveau, mesa-vulkan-drivers, vulkan-tools, firefox-esr, libreoffice, konsole, dolphin, kate, okular, gwenview, spectacle, ark, kcalc, kdeconnect, vlc, celluloid, htop, btop, fastfetch, curl, wget, git, vim, nano, sudo, bash-completion, command-not-found, cups, cups-client, system-config-printer, p7zip-full, unrar, unzip, zip, fonts-noto, fonts-noto-color-emoji, fonts-dejavu-core, fonts-liberation2, fonts-roboto, plymouth, plymouth-themes, calamares, calamares-settings-debian
-Recommends: kdeconnect, plasma-nm, plasma-pa, plasma-workspace-wallpapers, kwin-x11, libpam-fprintd, webext-plasma-browser-integration
-Description: ViewOS default desktop metapackage
- This metapackage pulls in the complete ViewOS desktop environment,
- including KDE Plasma, drivers, firmware, applications, and system
- utilities.
+Homepage: https://github.com/Mitchell-Brooke/viewos
+Depends:
+ kde-full,
+ sddm,
+ network-manager,
+ pipewire,
+ wireplumber,
+ bluez,
+ tlp,
+ tlp-rdw,
+ firmware-linux,
+ firmware-linux-nonfree,
+ firmware-realtek,
+ firmware-iwlwifi,
+ firmware-atheros,
+ firmware-amd-graphics,
+ firmware-intel-sound,
+ firmware-sof-signed,
+ intel-microcode,
+ amd64-microcode,
+ mesa-vulkan-drivers,
+ vulkan-tools,
+ libgl1-mesa-dri,
+ libglx-mesa0,
+ firefox-esr,
+ libreoffice,
+ konsole,
+ dolphin,
+ kate,
+ okular,
+ gwenview,
+ kde-spectacle,
+ ark,
+ kcalc,
+ kdeconnect,
+ vlc,
+ celluloid,
+ htop,
+ btop,
+ fastfetch,
+ curl,
+ wget,
+ git,
+ vim,
+ nano,
+ sudo,
+ bash-completion,
+ command-not-found,
+ cups,
+ cups-client,
+ system-config-printer,
+ p7zip-full,
+ unrar,
+ unzip,
+ zip,
+ fonts-noto,
+ fonts-noto-color-emoji,
+ fonts-dejavu-core,
+ fonts-liberation2,
+ fonts-roboto,
+ plymouth,
+ plymouth-themes
+Recommends:
+ calamares,
+ calamares-settings-debian,
+ plasma-nm,
+ plasma-pa,
+ plasma-workspace-wallpapers,
+ kwin-x11,
+ wpasupplicant
+Suggests:
+ nvidia-driver
+Description: ViewOS desktop environment
+ ViewOS is a Debian-based distribution whose desktop environment is
+ selected by installing this metapackage.
  .
- ViewOS is a Debian-based distribution featuring head-tracked window
- perspective using webcam-based face detection.
+ It pulls in KDE Plasma 6, the Calamares installer, audio and network
+ daemons, power management, graphics firmware for common Intel, AMD and
+ Realtek devices, and a general-purpose set of applications.
+ .
+ The NVIDIA proprietary driver is deliberately not a hard dependency, so
+ that this package remains installable on machines with no NVIDIA GPU.
+ Install nvidia-driver on such machines to enable it.

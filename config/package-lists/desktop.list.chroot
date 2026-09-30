@@ -54,7 +54,7 @@ dolphin
 kate
 okular
 gwenview
-spectacle
+kde-spectacle
 ark
 kcalc
 kdeconnect
@@ -64,7 +64,6 @@ celluloid
 # System utilities
 htop
 btop
-neofetch
 fastfetch
 curl
 wget

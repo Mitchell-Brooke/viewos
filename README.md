@@ -2,7 +2,7 @@
 
 > **Head-tracked desktop Linux distribution** — Windows rotate to face your face using a local webcam.
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/jmultimate/viewos/apt-repo.yml)](https://github.com/jmultimate/viewos/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Mitchell-Brooke/viewos/apt-repo.yml)](https://github.com/Mitchell-Brooke/viewos/actions)
 [![License](https://img.shields.io/badge/license-GPL--3.0+-blue.svg)](LICENSE)
 [![Debian Base](https://img.shields.io/badge/base-Debian%2013%20(Trixie)-A81D33)](https://www.debian.org/)
 [![Desktop](https://img.shields.io/badge/desktop-KDE%20Plasma%206-3598DC)](https://kde.org/plasma-desktop/)

@@ -1,25 +1,23 @@
-#!/bin/bash
-# postinst script for viewos-desktop
-
+#!/bin/sh
+# postinst for viewos-desktop
+#
+# This is a metapackage: it ships no files, so there is nothing to install.
+# We only need to make sure the boot-time service units are enabled, which
+# Debian packages normally do themselves. The only real work here is ensuring
+# the display manager is enabled, because a headless install that leaves sddm
+# disabled will drop to a TTY after reboot.
 set -e
 
-# Enable and start services
-systemctl enable sddm.service || true
-systemctl enable NetworkManager.service || true
-systemctl enable bluetooth.service || true
-systemctl enable tlp.service || true
+case "$1" in
+    configure)
+        if command -v systemctl >/dev/null 2>&1; then
+            # sddm enables itself via its own postinst; this is a no-op if
+            # already enabled and harmless if the system is containerised.
+            systemctl enable sddm.service >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
 
-# Set default target to graphical
-systemctl set-default graphical.target || true
-
-# Configure Plymouth theme (placeholder)
-# plymouth-set-default-theme viewos || true
-# update-initramfs -u || true
-
-# Add user to common groups (handled by Calamares during install)
-# This runs on live system boot
-if [ -n "$USER" ] && [ "$USER" != "root" ]; then
-    usermod -a -G video,render,input,plugdev,netdev,bluetooth "$USER" 2>/dev/null || true
-fi
+#DEBHELPER#
 
 exit 0

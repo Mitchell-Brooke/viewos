@@ -1,15 +1,27 @@
 Package: viewos-face-daemon
+Source: viewos
 Version: 0.1.0
 Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: ViewOS Project <help@jmultimate.com>
-Installed-Size: 4096
-Depends: libc6 (>= 2.34), libgcc-s1 (>= 12), libstdc++6 (>= 12), libopencv-core4.08 (>= 4.8), libopencv-dnn4.08 (>= 4.8), libopencv-imgproc4.08 (>= 4.8), libopencv-videoio4.08 (>= 4.8)
+Homepage: https://github.com/Mitchell-Brooke/viewos
+Depends:
+ libopencv-core410,
+ libopencv-imgproc410,
+ libopencv-dnn410,
+ libopencv-calib3d410,
+ libopencv-videoio410,
+ ${shlibs:Depends},
 Recommends: viewos-kwin-effect
 Description: Face tracking daemon for ViewOS head-tracked window perspective
- This daemon captures webcam frames, runs YuNet face detection,
- solves head pose via PnP, and publishes tilt angles over a Unix
- socket for the KWin effect to consume.
+ This daemon captures frames from a webcam, locates the viewer's face with a
+ locally executed YuNet model, estimates head pose from the resulting facial
+ landmarks, and publishes the pose over a local Unix socket.
  .
- The daemon is written in Rust for performance and memory safety.
+ The companion KWin effect, viewos-kwin-effect, reads that socket and rotates
+ windows to face the viewer.
+ .
+ All processing happens on the local machine. The daemon contains no network
+ functionality: it opens no sockets other than the Unix domain socket under
+ /run/viewos, and writes nothing outside its configuration directory.

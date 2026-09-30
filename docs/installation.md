@@ -2,7 +2,7 @@
 
 ## Download
 
-Download the latest ISO from the [releases page](https://github.com/jmultimate/viewos/releases) or from [Internet Archive](https://archive.org/details/viewos).
+Download the latest ISO from the [releases page](https://github.com/Mitchell-Brooke/viewos/releases) or from [Internet Archive](https://archive.org/details/viewos).
 
 Verify the SHA256 checksum:
 ```bash
@@ -90,15 +90,18 @@ sudo apt update && sudo apt full-upgrade
 ```
 
 ### APT Repository
-ViewOS packages are served from a signed APT repository:
+ViewOS packages are served from a signed APT repository. This is already
+configured on an installed ViewOS system; to add it to another Debian or
+Ubuntu machine:
 ```bash
-# Add repository (already configured on installed system)
-curl -fsSL https://jmultimate.github.io/viewos-apt/signing-key.gpg | \
-    sudo gpg --dearmor -o /usr/share/keyrings/viewos-apt.gpg
+curl -fsSL https://mitchell-brooke.github.io/viewos/signing-key.gpg | \
+    sudo gpg --dearmor -o /usr/share/keyrings/viewos-archive-keyring.gpg
 
-echo "deb [signed-by=/usr/share/keyrings/viewos-apt.gpg] \
-    https://jmultimate.github.io/viewos-apt trixie main" | \
+echo "deb [signed-by=/usr/share/keyrings/viewos-archive-keyring.gpg] \
+    https://mitchell-brooke.github.io/viewos trixie main" | \
     sudo tee /etc/apt/sources.list.d/viewos.list
+
+sudo apt update
 ```
 
 ## Troubleshooting

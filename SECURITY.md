@@ -78,4 +78,4 @@ Report any:
 
 - **Security email:** security@jmultimate.com
 - **General support:** help@jmultimate.com
-- **PGP key:** Available at https://jmultimate.github.io/viewos-apt/signing-key.asc
+- **PGP key:** Available at https://mitchell-brooke.github.io/viewos/signing-key.asc

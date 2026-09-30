@@ -1,12 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 # prerm for viewos-face-daemon
-
 set -e
 
-# Stop and disable service
-systemctl --user stop viewos-face-daemon.service 2>/dev/null || true
-systemctl --user disable viewos-face-daemon.service 2>/dev/null || true
-systemctl stop viewos-face-daemon.service 2>/dev/null || true
-systemctl disable viewos-face-daemon.service 2>/dev/null || true
+case "$1" in
+    remove|deconfigure)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl --user stop viewos-face-daemon.service >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#
 
 exit 0

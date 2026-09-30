@@ -2,49 +2,61 @@
 name = "viewos-face-daemon"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 license = "GPL-3.0-or-later"
 description = "ViewOS face tracking daemon for head-tracked window perspective"
-repository = "https://github.com/jmultimate/viewos"
+repository = "https://github.com/Mitchell-Brooke/viewos"
+readme = "README.md"
+publish = false
+
+[[bin]]
+name = "viewos-face-daemon"
+path = "src/main.rs"
+
+[lib]
+name = "viewos_face_daemon"
+path = "src/lib.rs"
 
 [dependencies]
-# Video capture
-v4l = "0.9"
+# OpenCV bindings for the YuNet detector, PnP pose solver and webcam capture.
+#
+# default-features = false is deliberate: the default feature set pulls in
+# every OpenCV module, including the CUDA ones, which we neither need nor can
+# link against on a machine without the NVIDIA toolkit. The features listed
+# here are the transitive minimum for dnn + videoio + calib3d.
+opencv = { version = "0.101", default-features = false, features = [
+    "dnn",
+    "videoio",
+    "calib3d",
+] }
 
-# Image processing
-image = "0.24"
-imageproc = "0.24"
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "net",
+    "io-util",
+    "sync",
+    "time",
+    "signal",
+    "macros",
+] }
 
-# OpenCV bindings for YuNet
-opencv = { version = "0.21", features = ["opencv-4"] }
-
-# Async runtime
-tokio = { version = "1.38", features = ["full"] }
-
-# Serialization for socket communication
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-bincode = "1.3"
-
-# Configuration
-config = "0.13"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 toml = "0.8"
 
-# Logging
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-
-# System integration
-nix = "0.27"
-dbus = { version = "0.9", features = ["tokio1"] }
-
-# Math
-nalgebra = "0.32"
-
-[build-dependencies]
-pkg-config = "0.3"
 
 [profile.release]
 lto = true
 opt-level = 3
 codegen-units = 1
-strip = true
+# Keep debug info: dpkg-deb-strip strips it into a separate -dbgsym package,
+# which Debian policy expects for anything with compiled code. Stripping it
+# here instead would make backtraces from user bug reports useless.
+strip = "debuginfo"
+debug = 1
+panic = "abort"
