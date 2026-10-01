@@ -31,8 +31,9 @@ cmake --install "$BUILD_DIR" --prefix "$STAGE_DIR"
 # still loads, but then carries an SONAME that makes KWin's plugin loader skip
 # it with no useful diagnostic, so the symptom is "the effect silently does
 # not appear". Checking here turns that into a build failure.
-plugin_so="$(find "$STAGE_DIR" -name 'libviewosfacetilt*.so' -print -quit)"
-[ -n "$plugin_so" ] || die "cmake did not install anything called libviewosfacetilt.so"
+# KWin plugins are installed without the "lib" prefix.
+plugin_so="$(find "$STAGE_DIR" -name 'viewosfacetilt*.so' -print -quit)"
+[ -n "$plugin_so" ] || die "cmake did not install anything called viewosfacetilt.so"
 
 if readelf -d "$plugin_so" 2>/dev/null | grep -q '(SONAME)'; then
     die "$(basename "$plugin_so") has a SONAME. It must be built as a CMake MODULE library, \
