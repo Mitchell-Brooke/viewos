@@ -41,7 +41,7 @@ void ViewOSFaceTiltEffect::reconfigure(Effect::ReconfigureFlags flags)
     Effect::reconfigure(flags);
     loadConfig();
     if (m_enabled) {
-        m_client->setSocketPath(QDir::temp().filePath("viewos-face-tilt.sock"));
+        m_client->setSocketPath(QDir::temp().filePath(QStringLiteral("viewos-face-tilt.sock")));
         m_client->reconnectNow();
     } else {
         m_client->setSocketPath(QString());
@@ -94,7 +94,7 @@ void ViewOSFaceTiltEffect::prePaintWindow(EffectWindow *w,
     }
 
     const QRectF geom = w->frameGeometry();
-    const QSize screenSize = effects->screenSize();
+    const QSize screenSize = effects->virtualScreenSize();
     const QPointF centreFraction(geom.center().x() / screenSize.width(),
                                  geom.center().y() / screenSize.height());
 
