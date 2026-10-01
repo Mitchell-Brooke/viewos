@@ -44,9 +44,9 @@ info "plugin is a loadable module: ${plugin_so#"$STAGE_DIR"}"
 # Stage into the package tree so the .deb is built from exactly what was
 # compiled, rather than from a hand-maintained file list that can drift.
 info "populating ${PKG_SRC_DIR}"
-rm -rf "${PKG_SRC_DIR}/usr/lib"
-install -d "${PKG_SRC_DIR}/usr/lib"
-cp -a "$STAGE_DIR/usr/lib/." "${PKG_SRC_DIR}/usr/lib/"
+rm -rf "${PKG_SRC_DIR}/usr"
+install -d "${PKG_SRC_DIR}/usr"
+cp -a "$STAGE_DIR/." "${PKG_SRC_DIR}/usr/"
 
 find "${PKG_SRC_DIR}/usr" -type f -printf '%M %p\n' | sed "s|${PKG_SRC_DIR}/||"
 
