@@ -102,6 +102,13 @@ jobs:
       - name: Build and package
         run: packages/build-kwin-effect.sh
 
+      - name: Fix permissions for artifact upload
+        # The build runs as root in the container, but the artifact upload runs
+        # as the runner user on the host. Fix ownership so the host can read
+        # the built packages.
+        run: |
+          sudo chown -R $(id -u):$(id -g) packages/build/
+
       - name: Check the plugin is a loadable module
         run: |
           so=$(find packages/viewos-kwin-effect/usr -name 'viewosfacetilt*.so' -print -quit)
@@ -179,6 +186,13 @@ jobs:
           LLVM_CONFIG_PATH: /usr/bin/llvm-config-17
           LIBCLANG_PATH: /usr/lib/llvm-17/lib
         run: packages/build-face-daemon.sh
+
+      - name: Fix permissions for artifact upload
+        # The build runs as root in the container, but the artifact upload runs
+        # as the runner user on the host. Fix ownership so the host can read
+        # the built packages.
+        run: |
+          sudo chown -R $(id -u):$(id -g) packages/build/
 
       - name: Run the unit tests
         # Tests are compiled but not run during the build above, because the
