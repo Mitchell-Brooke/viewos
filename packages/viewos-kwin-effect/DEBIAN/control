@@ -13,8 +13,7 @@ Depends: kwin-common (>= 4:6.0),
  libkf6windowsystem6,
  libqt6core6t64,
  libqt6gui6,
- libstdc++6,
- ${shlibs:Depends}
+ libstdc++6
 Recommends: viewos-face-daemon
 Description: KWin effect for ViewOS face-tracked window perspective
  ViewOS can rotate each window in 3D so that it faces the position of the
