@@ -15,8 +15,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
-#include <QMatrix4x4>
-#include <QQuaternion>
 #include <QStandardPaths>
 
 #include <cmath>
@@ -118,11 +116,6 @@ void ViewOSFaceTiltEffect::prePaintWindow(EffectWindow *w,
         return;
     }
 
-    const auto &s = m_smoothed[w->internalId()];
-    data.setRotationAngle(qDegreesToRadians(s.angle));
-    data.setRotationAxis(s.axis);
-    data.setRotationOrigin(QVector3D(geom.center().x(), geom.center().y(), 0.0f));
-
     Effect::prePaintWindow(w, data, presentTime);
 }
 
@@ -131,12 +124,25 @@ void ViewOSFaceTiltEffect::paintWindow(const RenderTarget &renderTarget,
                                        EffectWindow *w, int mask,
                                        QRegion region, WindowPaintData &data)
 {
+    if (!isEligible(w)) {
+        Effect::paintWindow(renderTarget, viewport, w, mask, region, data);
+        return;
+    }
+
+    const auto it = m_smoothed.find(w->internalId());
+    if (it != m_smoothed.end() && it.value().initialised) {
+        data.setRotationAngle(it.value().angle);
+        data.setRotationAxis(it.value().axis);
+        data.setRotationOrigin(QVector3D(w->frameGeometry().center().x(),
+                                         w->frameGeometry().center().y(), 0.0f));
+    }
+
     Effect::paintWindow(renderTarget, viewport, w, mask, region, data);
 }
 
 void ViewOSFaceTiltEffect::loadConfig()
 {
-    KConfigGroup config = KSharedConfig::openConfig()->group("ViewOSFaceTilt");
+    KConfigGroup config = KSharedConfig::openConfig()->group(QStringLiteral("ViewOSFaceTilt"));
     m_enabled = config.readEntry("Enabled", false);
     m_maxAngleDeg = config.readEntry("MaxAngle", 10.0f);
     m_minConfidence = config.readEntry("MinConfidence", 0.5f);
@@ -167,7 +173,7 @@ bool ViewOSFaceTiltEffect::isEligible(EffectWindow *w) const
     }
 
     const QRectF frame = w->frameGeometry();
-    const QRectF output = w->output()->geometry();
+    const QRectF output = w->screen()->geometry();
     if (frame.width() >= output.width() * 0.99 &&
         frame.height() >= output.height() * 0.99) {
         return false;
@@ -245,11 +251,10 @@ public:
     ViewOSFaceTiltEffectFactory(QObject *parent = nullptr, const QVariantList &args = {})
         : KPluginFactory()
     {
-        // Register using the public template overload with explicit template argument.
-        // This avoids the template deduction failure with function pointers.
+        Q_UNUSED(parent);
+        Q_UNUSED(args);
         registerPlugin<KWin::ViewOSFaceTiltEffect>(createViewOSFaceTiltEffect);
     }
-
-    };
+};
 
 #include "viewosfacetilt.moc"
