@@ -6,8 +6,7 @@ Priority: optional
 Architecture: amd64
 Maintainer: ViewOS Project <help@jmultimate.com>
 Homepage: https://github.com/Mitchell-Brooke/viewos
-Depends:
- kwin-common (>= 4:6.0),
+Depends: kwin-common (>= 4:6.0),
  libkwin6,
  libkf6configcore6,
  libkf6coreaddons6,
@@ -15,7 +14,7 @@ Depends:
  libqt6core6t64,
  libqt6gui6,
  libstdc++6,
- ${shlibs:Depends},
+ ${shlibs:Depends}
 Recommends: viewos-face-daemon
 Description: KWin effect for ViewOS face-tracked window perspective
  ViewOS can rotate each window in 3D so that it faces the position of the

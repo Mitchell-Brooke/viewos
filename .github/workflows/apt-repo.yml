@@ -104,9 +104,9 @@ jobs:
 
       - name: Check the plugin is a loadable module
         run: |
-          so=$(find packages/viewos-kwin-effect/usr/lib -name 'libviewosfacetilt*.so' -print -quit)
+          so=$(find packages/viewos-kwin-effect/usr -name 'viewosfacetilt*.so' -print -quit)
           test -n "$so"
-          # KWin loads effects from usr/lib/<triplet>/kwin/effects/plugins.
+          # KWin loads effects from usr/lib/<triplet>/qt6/plugins/kwin/effects/plugins.
           case "$so" in
             */kwin/effects/plugins/*) echo "installed at $so" ;;
             *) echo "::error::plugin installed at $so, which is not a path KWin scans"; exit 1 ;;
