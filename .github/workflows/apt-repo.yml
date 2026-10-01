@@ -114,19 +114,11 @@ jobs:
         # as the runner user on the host. Fix ownership so the host can read
         # the built packages.
         run: |
-          chown -R $(id -u):$(id -g) packages/build/      - name: List built packages
         run: |
           echo "=== packages/build/ ==="
           ls -la packages/build/ || true
           echo "=== packages/viewos-face-daemon ==="
           find packages/viewos-face-daemon -name "*.deb" || true
-
-      - name: Fix permissions for artifact upload
-        # The build runs as root in the container, but the artifact upload runs
-        # as the runner user on the host. Fix ownership so the host can read
-        # the built packages.
-        run: |
-          chown -R $(id -u):$(id -g) packages/build/
 
       - name: Run the unit tests
         # Tests are compiled but not run during the build above, because the
