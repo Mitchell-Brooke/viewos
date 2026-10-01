@@ -73,7 +73,7 @@ void ViewOSFaceTiltEffect::postPaintScreen()
 {
     Effect::postPaintScreen();
     if (m_needsAnotherFrame) {
-        EffectsHandler::self()->addRepaintFull();
+        effects->addRepaintFull();
     }
 }
 
@@ -94,8 +94,9 @@ void ViewOSFaceTiltEffect::prePaintWindow(EffectWindow *w,
     }
 
     const QRectF geom = w->frameGeometry();
-    const QPointF centreFraction(geom.center().x() / EffectsHandler::self()->screenSize().width(),
-                                 geom.center().y() / EffectsHandler::self()->screenSize().height());
+    const QSize screenSize = effects->screenSize();
+    const QPointF centreFraction(geom.center().x() / screenSize.width(),
+                                 geom.center().y() / screenSize.height());
 
     QVector3D axis;
     float angle;
@@ -106,7 +107,7 @@ void ViewOSFaceTiltEffect::prePaintWindow(EffectWindow *w,
         m_smoothed[w->internalId()] = {axis, smoothedAngle, true};
     } else {
         auto &s = m_smoothed[w->internalId()];
-        s.axis = QVector3D::normal(s.axis + axis * (1.0f - m_smoothing));
+        s.axis = (s.axis + axis * (1.0f - m_smoothing)).normalized();
         s.angle = s.angle * m_smoothing + smoothedAngle * (1.0f - m_smoothing);
         s.initialised = true;
     }
