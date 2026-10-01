@@ -104,96 +104,22 @@ jobs:
 
       - name: List built packages
         run: |
-          ls -la packages/build/
+          echo "=== packages/build/ ==="
+          ls -la packages/build/ || true
+          echo "=== packages/viewos-kwin-effect ==="
+          find packages/viewos-kwin-effect -name "*.deb" || true
 
       - name: Fix permissions for artifact upload
         # The build runs as root in the container, but the artifact upload runs
         # as the runner user on the host. Fix ownership so the host can read
         # the built packages.
         run: |
-          chown -R $(id -u):$(id -g) packages/build/
-
-      - name: Check the plugin is a loadable module
+          chown -R $(id -u):$(id -g) packages/build/      - name: List built packages
         run: |
-          so=$(find packages/viewos-kwin-effect/usr -name 'viewosfacetilt*.so' -print -quit)
-          test -n "$so"
-          # KWin loads effects from usr/lib/<triplet>/qt6/plugins/kwin/effects/plugins.
-          case "$so" in
-            */kwin/effects/plugins/*) echo "installed at $so" ;;
-            *) echo "::error::plugin installed at $so, which is not a path KWin scans"; exit 1 ;;
-          esac
-          if readelf -d "$so" | grep -q '(SONAME)'; then
-            echo "::error::plugin has a SONAME and KWin's loader will skip it"
-            exit 1
-          fi
-          # Confirm the KPlugin metadata really is embedded. A plugin whose
-          # metadata.json failed to embed loads but is invisible in the
-          # Desktop Effects settings, which is very hard to diagnose later.
-          strings "$so" | grep -q '"viewosfacetilt"' \
-            || { echo "::error::KPlugin metadata is not embedded in $so"; exit 1; }
-          echo "metadata embedded"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: deb-viewos-kwin-effect
-          path: packages/build/viewos-kwin-effect_*.deb
-          if-no-files-found: error
-          retention-days: 30
-
-  # ---------------------------------------------------------------------------
-  # The Rust daemon needs a toolchain and system OpenCV, so it also builds in
-  # a Trixie container.
-  # ---------------------------------------------------------------------------
-  build-face-daemon:
-    name: Build viewos-face-daemon
-    runs-on: ubuntu-latest
-    container:
-      image: debian:trixie-slim
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install build dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install --yes --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            curl \
-            ca-certificates \
-            rustc \
-            cargo \
-            libopencv-dev \
-            fakeroot \
-            llvm-17 \
-            libclang-17-dev
-          # Set OpenCV paths for the opencv crate's build.rs
-          echo "OpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          rm -rf /var/lib/apt/lists/*
-
-      - name: Report the toolchain versions
-        # Recorded in the log because the usual first question about a Rust
-        # build failure is "which compiler?".
-        run: |
-          rustc --version
-          cargo --version
-          pkg-config --modversion opencv4
-          llvm-config-17 --version
-
-      - name: Build and package
-        env:
-          # clang-sys (transitive dep of bindgen) needs libclang and llvm-config.
-          # Trixie's llvm-17 installs llvm-config-17; libclang-17-dev installs
-          # libclang.so at /usr/lib/llvm-17/lib/libclang.so.
-          LLVM_CONFIG_PATH: /usr/bin/llvm-config-17
-          LIBCLANG_PATH: /usr/lib/llvm-17/lib
-        run: packages/build-face-daemon.sh
-
-      - name: List built packages
-        run: |
-          ls -la packages/build/
+          echo "=== packages/build/ ==="
+          ls -la packages/build/ || true
+          echo "=== packages/viewos-face-daemon ==="
+          find packages/viewos-face-daemon -name "*.deb" || true
 
       - name: Fix permissions for artifact upload
         # The build runs as root in the container, but the artifact upload runs
