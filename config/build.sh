@@ -31,8 +31,6 @@ lb config noauto \
     --firmware-binary true \
     --firmware-chroot true \
     --grub-splash "/usr/share/images/desktop-base/grub-splash.png" \
-    --iso-publisher "ViewOS Project" \
-    --iso-application "ViewOS" \
     --keyring-packages "debian-archive-keyring" \
     --memtest none \
     --mode debian \
