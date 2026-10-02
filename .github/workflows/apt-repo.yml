@@ -170,11 +170,17 @@ jobs:
             libopencv-dev \
             fakeroot \
             llvm-17 \
-            libclang-17-dev
+            libclang-17-dev \
+            ninja-build
           # Set OpenCV paths for the opencv crate's build.rs
           echo "OpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
           rm -rf /var/lib/apt/lists/*
+
+      - name: Verify OpenCV cmake config
+        run: |
+          ls -la /usr/lib/x86_64-linux-gnu/cmake/opencv4/ || true
+          cat /usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake | head -20 || true
 
       - name: Report the toolchain versions
         # Recorded in the log because the usual first question about a Rust
@@ -184,6 +190,7 @@ jobs:
           cargo --version
           pkg-config --modversion opencv4
           llvm-config-17 --version
+          cmake --version
 
       - name: Build and package
         env:

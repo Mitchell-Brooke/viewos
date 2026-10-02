@@ -28,13 +28,21 @@ OPENCV_LINK_LIBS="${OPENCV_LINK_LIBS:+,opencv_core,opencv_imgproc,opencv_imgcode
 export OPENCV_INCLUDE_PATHS OPENCV_LINK_PATHS OPENCV_LINK_LIBS
 
 # The crate's build script shells out to cmake to probe the OpenCV it finds.
+# We also set CMAKE_PREFIX_PATH so the probe can find OpenCVConfig.cmake.
 command -v cmake >/dev/null 2>&1 || die "cmake is required to probe the system OpenCV"
 command -v pkg-config >/dev/null 2>&1 || die "pkg-config is required to probe the system OpenCV"
+
+# Help the opencv crate's cmake probe find the system OpenCV
+export CMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake/opencv4:${CMAKE_PREFIX_PATH:-}"
+export OpenCV_DIR="/usr/lib/x86_64-linux-gnu/cmake/opencv4"
+export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH:-}"
 
 if ! pkg-config --exists opencv4; then
     die "opencv4 not found by pkg-config. On Debian install libopencv-dev."
 fi
 info "using system OpenCV $(pkg-config --modversion opencv4)"
+info "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}"
+info "OpenCV_DIR=${OpenCV_DIR}"
 
 # --- Build ---------------------------------------------------------------
 info "building viewos-face-daemon"
@@ -68,3 +76,6 @@ lint_package "$deb"
 
 info "removing the cargo build directory"
 rm -rf "${DAEMON_SRC_DIR}/target"
+
+info "built deb at: ${deb}"
+ls -la "${deb}"

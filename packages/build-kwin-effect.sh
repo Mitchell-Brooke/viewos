@@ -27,6 +27,9 @@ STAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE_DIR"' EXIT
 cmake --install "$BUILD_DIR" --prefix "$STAGE_DIR"
 
+# Also copy the built plugin to a known location for debugging
+find "$BUILD_DIR" -name 'viewosfacetilt*.so' -exec cp {} "$STAGE_DIR/" \;
+
 # The plugin has to be a MODULE, not a shared library. A wrongly linked object
 # still loads, but then carries an SONAME that makes KWin's plugin loader skip
 # it with no useful diagnostic, so the symptom is "the effect silently does
@@ -52,3 +55,6 @@ find "${PKG_SRC_DIR}/usr" -type f -printf '%M %p\n' | sed "s|${PKG_SRC_DIR}/||"
 
 deb="$(build_package "$PKG_SRC_DIR")"
 lint_package "$deb"
+
+info "built deb at: ${deb}"
+ls -la "${deb}"
