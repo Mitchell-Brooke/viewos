@@ -171,6 +171,7 @@ jobs:
             fakeroot \
             llvm-17 \
             libclang-17-dev \
+            clang-17 \
             ninja-build
           # Set OpenCV paths for the opencv crate's build.rs
           echo "OpenCV_DIR=/usr/lib/x86_64-linux-gnu/cmake/opencv4" >> $GITHUB_ENV
@@ -206,6 +207,8 @@ jobs:
           OPENCV_INCLUDE_PATHS: /usr/include/opencv4
           OPENCV_LINK_PATHS: /usr/lib/x86_64-linux-gnu
           OPENCV_LINK_LIBS: opencv_core,opencv_imgproc,opencv_imgcodecs,opencv_dnn,opencv_videoio,opencv_video,opencv_calib3d,opencv_features2d,opencv_flann
+          # Ensure clang is in PATH for opencv-binding-generator
+          PATH: /usr/lib/llvm-17/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         run: packages/build-face-daemon.sh
 
       - name: List built packages
