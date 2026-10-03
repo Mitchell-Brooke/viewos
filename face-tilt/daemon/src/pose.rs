@@ -83,7 +83,8 @@ impl HeadPoseSolver {
         let fx = (frame_size.width as f32 / 2.0) / (hfov / 2.0).tan();
         let fy = fx;
 
-        let camera_matrix = Mat::from_slice(&[
+        let mut camera_matrix = Mat::new_rows_cols_with_default(3, 3, 0.0f64)?;
+        let data = [
             f64::from(fx),
             0.0,
             f64::from(frame_size.width as f32 / 2.0),
@@ -93,7 +94,10 @@ impl HeadPoseSolver {
             0.0,
             0.0,
             1.0,
-        ])?.into();
+        ];
+        for (i, &val) in data.iter().enumerate() {
+            *camera_matrix.at_2d_mut::<f64>(i / 3, i % 3)? = val;
+        }
 
         let dist_coeffs = Mat::zeros(4, 1, CV_64F)?.to_mat()?;
 
