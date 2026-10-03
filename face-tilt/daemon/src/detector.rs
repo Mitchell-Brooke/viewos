@@ -149,9 +149,9 @@ impl YuNetDetector {
 
     /// Copy one output row into a `Vec`, or `None` if the row is unreadable.
     fn read_row(&self, rows: &Mat, index: i32) -> Option<Vec<f32>> {
-        // rows.row() returns a MatExpr, which must be converted to a Mat
-        let row_expr = rows.row(index);
-        let row = row_expr.to_mat().ok()?;
+        // rows.row() returns a MatExpr, which must be converted to a Mat.
+        // to_mat() returns Result<BoxedRef<'_, Mat>, Error>; BoxedRef derefs to Mat.
+        let row = rows.row(index).to_mat().ok()?;
         let mut values = Vec::with_capacity(VALUES_PER_DETECTION);
         for column in 0..VALUES_PER_DETECTION {
             // SAFETY: the output tensor is CV_32F, and the loop is bounded to
