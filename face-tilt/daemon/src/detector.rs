@@ -61,7 +61,7 @@ impl YuNetDetector {
             config.model_path
         );
 
-        let net = dnn::read_net_from_onnx_and_try_to_read(p).map_err(|e| {
+        let net = dnn::read_net_from_onnx(&config.model_path).map_err(|e| {
             anyhow::anyhow!(
                 "could not load the YuNet model at {}: {e}. \
                  A truncated download is the usual cause; re-run \
@@ -149,10 +149,10 @@ impl YuNetDetector {
 }
 
 /// Copy one output row into a `Vec`, or `None` if the row is unreadable.
-fn read_row(rows: &Mat, index: i32) -> Option<Vec<f32>> {
+fn read_row(rows: impl AsRef<Mat>, index: i32) -> Option<Vec<f32>> {
     // rows.row() returns a MatExpr; to_mat() returns Result<BoxedRef<'_, Mat>, Error>.
     // BoxedRef implements AsRef<Mat>, so we can get a &Mat via as_ref().
-    let row = rows.row(index).to_mat().ok()?;
+    let row = rows.as_ref().row(index).to_mat().ok()?;
     let row_ref = row.as_ref();
     let mut values = Vec::with_capacity(VALUES_PER_DETECTION);
     for column in 0..VALUES_PER_DETECTION {
