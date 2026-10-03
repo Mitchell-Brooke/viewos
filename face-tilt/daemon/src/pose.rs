@@ -190,7 +190,7 @@ impl HeadPoseSolver {
         // metres away, is a failed solve. Rejecting it here is what stops
         // windows from spinning wildly for a frame.
         let distance = position_mm[2];
-        if !(geometry.min_viewing_distance_mm()..=geometry.max_viewing_distance_mm).contains(&distance)
+        if !(self.geometry.min_viewing_distance_mm()..=self.geometry.max_viewing_distance_mm).contains(&distance)
         {
             return None;
         }

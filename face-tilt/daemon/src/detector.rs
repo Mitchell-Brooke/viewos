@@ -151,15 +151,16 @@ impl YuNetDetector {
 /// Copy one output row into a `Vec`, or `None` if the row is unreadable.
 fn read_row(rows: &Mat, index: i32) -> Option<Vec<f32>> {
     // rows.row() returns a MatExpr; to_mat() returns Result<BoxedRef<'_, Mat>, Error>.
-    // BoxedRef has a to_mat() method that returns Result<Mat>.
-    let row = rows.row(index).to_mat().ok()?.to_mat().ok()?;
+    // BoxedRef implements AsRef<Mat>, so we can get a &Mat via as_ref().
+    let row = rows.row(index).to_mat().ok()?;
+    let row_ref = row.as_ref();
     let mut values = Vec::with_capacity(VALUES_PER_DETECTION);
     for column in 0..VALUES_PER_DETECTION {
         // SAFETY: the output tensor is CV_32F, and the loop is bounded to
         // one row and to the column count we know the model produces. The
         // bounds are re-checked by `at_2d` itself, which returns an error
         // rather than reading out of range.
-        match unsafe { row.at_2d::<f32>(0, column as i32) } {
+        match unsafe { row_ref.at_2d::<f32>(0, column as i32) } {
             Ok(value) if value.is_finite() => values.push(*value),
             _ => return None,
         }
