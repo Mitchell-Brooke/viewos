@@ -93,7 +93,7 @@ impl HeadPoseSolver {
             0.0,
             0.0,
             1.0,
-        ])?.to_mat()?;
+        ])?;
 
         let dist_coeffs = Mat::zeros(4, 1, CV_64F)?.to_mat()?;
 
