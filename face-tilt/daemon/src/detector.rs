@@ -96,7 +96,7 @@ impl YuNetDetector {
         self.net.set_input(&blob, "", 0.0, Scalar::all(0.0))?;
 
         let mut output = Mat::default();
-        self.net.forward(&mut output, &[])?;
+        self.net.forward(&mut output, &opencv::core::Vector::new())?;
 
         let rows = output.reshape(1, 0)?;
         let mut faces = Vec::new();
@@ -106,7 +106,7 @@ impl YuNetDetector {
         // face-tracking daemon means every window snaps back to flat.
         let wanted = (self.max_candidates as i32).min(rows.rows());
         for row_index in 0..wanted {
-            let Some(row) = self.read_row(&rows, row_index) else {
+            let Some(row) = YuNetDetector::read_row(&rows, row_index) else {
                 break;
             };
             if row.len() < VALUES_PER_DETECTION {

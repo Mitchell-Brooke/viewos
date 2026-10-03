@@ -83,7 +83,7 @@ impl HeadPoseSolver {
         let fx = (frame_size.width as f32 / 2.0) / (hfov / 2.0).tan();
         let fy = fx;
 
-        let camera_matrix = Mat::from_slice(&[
+        let camera_matrix = *Mat::from_slice(&[
             f64::from(fx),
             0.0,
             f64::from(frame_size.width as f32 / 2.0),
