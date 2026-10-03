@@ -141,7 +141,7 @@ impl HeadPoseSolver {
             &mut rvec,
             &mut tvec,
             false,
-            SolvePnPMethod::SOLVEPNP_ITERATIVE,
+            SolvePnPMethod::SOLVEPNP_ITERATIVE.into(),
         )
         .is_err()
         {
@@ -156,9 +156,9 @@ impl HeadPoseSolver {
         // `at_2d` bounds-checks independently, returning an error rather than
         // reading out of range.
         let translation = [
-            unsafe { *tvec.at_2d::<f64>(0, 0)? } as f32,
-            unsafe { *tvec.at_2d::<f64>(1, 0)? } as f32,
-            unsafe { *tvec.at_2d::<f64>(2, 0)? } as f32,
+            unsafe { *tvec.at_2d::<f64>(0, 0).ok()? } as f32,
+            unsafe { *tvec.at_2d::<f64>(1, 0).ok()? } as f32,
+            unsafe { *tvec.at_2d::<f64>(2, 0).ok()? } as f32,
         ];
 
         if translation.iter().any(|v| !v.is_finite()) {
